@@ -142,6 +142,51 @@ export function stochastic(highs, lows, closes, kPeriod = 14, dPeriod = 3) {
   return { k, d };
 }
 
+/** ADX de Wilder (força de tendência). Retorna array (null no aquecimento). */
+export function adx(highs, lows, closes, period = 14) {
+  const len = closes.length;
+  const out = new Array(len).fill(null);
+  if (len <= 2 * period) return out;
+  const plusDM = new Array(len).fill(0);
+  const minusDM = new Array(len).fill(0);
+  const tr = new Array(len).fill(0);
+  for (let i = 1; i < len; i++) {
+    const up = highs[i] - highs[i - 1];
+    const down = lows[i - 1] - lows[i];
+    plusDM[i] = up > down && up > 0 ? up : 0;
+    minusDM[i] = down > up && down > 0 ? down : 0;
+    tr[i] = Math.max(
+      highs[i] - lows[i],
+      Math.abs(highs[i] - closes[i - 1]),
+      Math.abs(lows[i] - closes[i - 1])
+    );
+  }
+  let atrS = 0, plusS = 0, minusS = 0;
+  for (let i = 1; i <= period; i++) { atrS += tr[i]; plusS += plusDM[i]; minusS += minusDM[i]; }
+  const dx = new Array(len).fill(null);
+  const calcDx = () => {
+    const pdi = 100 * (plusS / (atrS || 1));
+    const mdi = 100 * (minusS / (atrS || 1));
+    return (100 * Math.abs(pdi - mdi)) / (pdi + mdi || 1);
+  };
+  dx[period] = calcDx();
+  for (let i = period + 1; i < len; i++) {
+    atrS = atrS - atrS / period + tr[i];
+    plusS = plusS - plusS / period + plusDM[i];
+    minusS = minusS - minusS / period + minusDM[i];
+    dx[i] = calcDx();
+  }
+  let sum = 0;
+  for (let i = period; i < 2 * period; i++) sum += dx[i];
+  let prev = sum / period;
+  out[2 * period - 1] = prev;
+  for (let i = 2 * period; i < len; i++) {
+    prev = (prev * (period - 1) + dx[i]) / period;
+    out[i] = prev;
+  }
+  return out;
+}
+
 export function lastValid(arr) {
   for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i];
   return null;
