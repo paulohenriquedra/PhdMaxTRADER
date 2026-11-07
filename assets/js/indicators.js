@@ -187,6 +187,20 @@ export function adx(highs, lows, closes, period = 14) {
   return out;
 }
 
+/**
+ * Efficiency Ratio (Kaufman): progresso líquido ÷ movimento total, nas últimas
+ * n velas. Perto de 1 = movimento limpo numa direção; perto de 0 = muito
+ * vai-e-volta sem sair do lugar (picotado). Retorna 0..1 ou null.
+ */
+export function efficiencyRatio(closes, n = 10) {
+  const i = closes.length - 1;
+  if (i < n) return null;
+  let soma = 0;
+  for (let j = i - n + 1; j <= i; j++) soma += Math.abs(closes[j] - closes[j - 1]);
+  if (soma === 0) return 0;
+  return Math.abs(closes[i] - closes[i - n]) / soma;
+}
+
 export function lastValid(arr) {
   for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i];
   return null;

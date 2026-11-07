@@ -34,6 +34,7 @@ function clampPayout(v) { return Math.max(10, Math.min(100, v || 85)); }
 
 const vClass = (v) => (v === VERDICT.BUY ? "buy" : v === VERDICT.SELL ? "sell" : "wait");
 const vArrow = (v) => (v === VERDICT.BUY ? "▲" : v === VERDICT.SELL ? "▼" : "■");
+const regIcon = (r) => (r === "tendencia" ? "✅" : r === "parado" ? "😴" : "🌀");
 
 function fmtPrice(p) {
   if (p == null) return "—";
@@ -70,6 +71,7 @@ function buildCards() {
     <article class="card wait" id="card-${tf}">
       <div class="tf"><span>${tf} · <span class="clk" data-dur="${DUR[tf]}">—</span></span><span class="price" data-price>—</span></div>
       <div class="verdict wait"><span class="arrow">■</span><span data-verdict>ESPERAR</span></div>
+      <div class="regime" data-regime></div>
       <div class="votes-line" data-votes>analisando…</div>
       <div class="inds" data-inds></div>
       <div class="bar-block">
@@ -105,6 +107,12 @@ function renderCard(tf, r, bt) {
   vEl.querySelector(".arrow").textContent = vArrow(r.verdict);
   vEl.querySelector("[data-verdict]").textContent = r.verdict;
   card.querySelector("[data-votes]").textContent = r.resumoVotos;
+
+  const regEl = card.querySelector("[data-regime]");
+  if (regEl) {
+    regEl.className = "regime r-" + (r.regime || "tendencia");
+    regEl.textContent = `${regIcon(r.regime)} ${r.regimeLabel || ""}`;
+  }
 
   const dirArrow = (d) => (d === "alta" ? "▲" : d === "baixa" ? "▼" : "■");
   card.querySelector("[data-inds]").innerHTML = r.votes
@@ -352,7 +360,7 @@ async function runOverview() {
         try {
           const candles = await fetchCandles(s.v, ovTf, 150);
           const r = analyze(candles);
-          return { v: s.v, label: s.label, ok: r.ok, verdict: r.verdict, confluence: r.confluence, risk: r.risk };
+          return { v: s.v, label: s.label, ok: r.ok, verdict: r.verdict, confluence: r.confluence, risk: r.risk, regime: r.regime };
         } catch {
           return { v: s.v, label: s.label, ok: false };
         }
@@ -372,10 +380,12 @@ function renderOverview(list) {
   box.innerHTML = list
     .map((x) => {
       const cls = vClass(x.verdict);
-      const hot = x.confluence >= 100 ? " hot" : "";
+      const trend = x.regime === "tendencia";
+      const hot = x.confluence >= 100 && x.risk < 35 && trend ? " hot" : "";
       const sel = x.v === symbol ? " sel" : "";
-      return `<button type="button" class="ovrow ${cls}${hot}${sel}" data-sym="${x.v}">
-        <span class="ovsym">${x.label}</span>
+      const dim = trend ? "" : " notrend";
+      return `<button type="button" class="ovrow ${cls}${hot}${sel}${dim}" data-sym="${x.v}">
+        <span class="ovsym">${x.label} <span class="rico" title="${x.regime}">${regIcon(x.regime)}</span></span>
         <span class="ovdir ${cls}">${vArrow(x.verdict)} ${x.verdict}</span>
         <span class="ovm">conf <b>${x.confluence}%</b></span>
         <span class="ovm">vol <b>${x.risk}%</b></span>
@@ -436,8 +446,9 @@ function fireNotif(title, body, sym) {
 function checkNotifications(list) {
   const now = Date.now();
   for (const x of list) {
-    // Elegível: 100% de confluência E volatilidade baixa (sinal firme e calmo).
-    const eligible = x.confluence >= 100 && x.risk < LOW_VOL;
+    // Elegível: 100% de confluência, volatilidade baixa E mercado com
+    // tendência (não picotado/parado) — sinal firme, calmo e com direção.
+    const eligible = x.confluence >= 100 && x.risk < LOW_VOL && x.regime === "tendencia";
     const was = prevAlert[x.v] || false;
     prevAlert[x.v] = eligible;
     if (!alertsOn()) continue;
@@ -499,7 +510,12 @@ function tickEntry() {
   }
   const strong = r.confluence >= 75 && r.verdict !== VERDICT.WAIT;
   const cls = r.verdict === VERDICT.BUY ? "buy" : r.verdict === VERDICT.SELL ? "sell" : "wait";
-  if (!strong) {
+  // Mercado instável (vai-e-volta) ou parado NÃO está hábil a operar.
+  if (r.regime && r.regime !== "tendencia") {
+    el.className = "entry danger";
+    main.textContent = "NÃO OPERAR";
+    sub.textContent = `${lbl} · ${ovTf} · mercado ${(r.regimeLabel || "").toLowerCase()} ${regIcon(r.regime)} — fecha em ${remTxt}`;
+  } else if (!strong) {
     el.className = "entry wait";
     main.textContent = "AGUARDE";
     sub.textContent = `${lbl} · ${ovTf} · sinal fraco — vela fecha em ${remTxt}`;

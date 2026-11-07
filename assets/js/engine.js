@@ -3,7 +3,7 @@
 // (COMPRA / VENDA / ESPERAR) + confluência + risco, com o detalhe de cada voto.
 // O veredito nunca é inventado: é o resultado de indicadores reais concordando.
 
-import { ema, rsi, macd, bollinger, atr, stochastic, lastValid } from "./indicators.js";
+import { ema, rsi, macd, bollinger, atr, stochastic, lastValid, efficiencyRatio } from "./indicators.js";
 
 export const VERDICT = { BUY: "COMPRA", SELL: "VENDA", WAIT: "ESPERAR" };
 const UP = "alta";
@@ -106,6 +106,17 @@ export function analyze(candles) {
       ? "Indicadores sem acordo"
       : `${concordam} de ${total} indicadores em ${dirLabel}`;
 
+  // ---- Condição do mercado (regime) ----
+  // Efficiency Ratio: progresso líquido vs. movimento total. Baixo = sem
+  // direção clara (picotado ou parado — não hábil a operar).
+  const er = efficiencyRatio(closes, 10);
+  let regime = "tendencia"; // ✅ movimento com direção
+  let regimeLabel = "Com tendência";
+  if (er != null && er < 0.4) {
+    if (risk < 25) { regime = "parado"; regimeLabel = "Parado"; }
+    else { regime = "instavel"; regimeLabel = "Instável (vai-e-volta)"; }
+  }
+
   return {
     ok: true,
     price,
@@ -118,6 +129,9 @@ export function analyze(candles) {
     riskLabel,
     atr: atrVal,
     atrPct,
+    er,
+    regime,
+    regimeLabel,
     resumoVotos,
     votes,
   };

@@ -132,6 +132,16 @@ body {
 .entry.go.buy .entry-main { color: var(--buy); }
 .entry.go.sell .entry-main { color: var(--sell); }
 .entry.go .entry-main { font-size: 28px; }
+.entry.danger { background: var(--sell-dim); border-color: rgba(234,57,67,.5); }
+.entry.danger .entry-main { color: var(--sell); }
+
+/* Badge de condição do mercado (regime) */
+.regime { font-size: 12px; font-weight: 600; margin: 4px 0 2px; }
+.regime.r-tendencia { color: var(--buy); }
+.regime.r-instavel { color: var(--wait); }
+.regime.r-parado { color: var(--muted); }
+.rico { font-size: 11px; }
+.ovrow.notrend { opacity: .6; }
 @keyframes entryPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } 50% { box-shadow: 0 0 0 3px rgba(255,255,255,.12); } }
 @media (prefers-reduced-motion: reduce) { .entry.go { animation: none; } }
 
