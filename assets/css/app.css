@@ -67,15 +67,21 @@ body {
 .td-verdict.wait { color: var(--wait); }
 .td-text { margin: 0; font-size: 14.5px; line-height: 1.5; color: #c6cfdb; }
 
-.plan { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-@media (max-width: 560px) { .plan { grid-template-columns: repeat(2, 1fr); } }
-.plan-cell {
+.binbar { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; margin-top: 16px; }
+@media (max-width: 560px) { .binbar { grid-template-columns: 1fr 1fr; } .binbar .reco { grid-column: 1 / -1; } }
+.payout {
   background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
 }
-.plan-cell span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
-.plan-cell b { font-size: 16px; font-variant-numeric: tabular-nums; }
-.plan-cell b.neg { color: var(--sell); }
-.plan-cell b.pos { color: var(--buy); }
+.payout > span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.payout b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.payin { display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 700; color: var(--text); }
+.payin input {
+  width: 58px; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 8px; font-size: 16px; font-weight: 700; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.payout.reco b { font-size: 14px; line-height: 1.35; display: block; }
+.bt-sub { opacity: .7; }
 
 /* Cards */
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }

@@ -1,7 +1,7 @@
 // app.js — orquestra dados, motor, top-down, plano de entrada e backtest.
 import { fetchCandles, SYMBOLS } from "./data.js";
-import { analyze, topDown, entryPlan, VERDICT } from "./engine.js";
-import { runBacktest } from "./backtest.js";
+import { analyze, topDown, VERDICT } from "./engine.js";
+import { runBinaryBacktest, evalPayout } from "./backtest.js";
 
 const TIMEFRAMES = ["1m", "5m", "15m"];
 const REFRESH_MS = 5000;
@@ -10,9 +10,13 @@ const BT_EVERY_MS = 60000; // recalcula o histórico no máx. a cada 60s
 
 const $ = (s) => document.querySelector(s);
 let symbol = localStorage.getItem("sc_symbol") || "BTCUSDT";
+let payout = clampPayout(+localStorage.getItem("sc_payout") || 85);
 let timer = null;
 let lastBtAt = 0;
-let btCache = {};
+let btCache = {}; // { tf: {n, winRate} }
+let lastDirByTf = {}; // direção atual por tf, para a recomendação
+
+function clampPayout(v) { return Math.max(10, Math.min(100, v || 85)); }
 
 const vClass = (v) => (v === VERDICT.BUY ? "buy" : v === VERDICT.SELL ? "sell" : "wait");
 const vArrow = (v) => (v === VERDICT.BUY ? "▲" : v === VERDICT.SELL ? "▼" : "■");
@@ -91,34 +95,57 @@ function renderCard(tf, r, bt) {
 
   const btEl = card.querySelector("[data-bt]");
   if (bt) {
-    const net = bt.expectancyNet;
-    const cor = net > 0.02 ? "var(--buy)" : net < -0.02 ? "var(--sell)" : "var(--muted)";
+    const ev = evalPayout(bt.winRate, bt.n, payout / 100);
+    const acima = ev.edge === "acima do equilíbrio";
+    const cor = acima ? "var(--buy)" : ev.edge === "poucos dados" ? "var(--muted)" : "var(--sell)";
     btEl.innerHTML =
-      `histórico ${bt.n} ops · acerto ${bt.winRate.toFixed(0)}% · ` +
-      `líq <b style="color:${cor}">${net >= 0 ? "+" : ""}${net.toFixed(2)}R</b> · ${bt.edge}`;
+      `expiração ${tf}: <b>${(bt.winRate * 100).toFixed(0)}%</b> de acerto · ` +
+      `precisa ${(ev.breakeven * 100).toFixed(0)}% · ` +
+      `<b style="color:${cor}">${ev.edge}</b> <span class="bt-sub">(${bt.n} ops)</span>`;
   } else {
     btEl.textContent = "histórico: calculando…";
   }
 }
 
-function renderTopDown(price, td, plan) {
+function renderTopDown(price, td) {
   $("#td-price").textContent = fmtPrice(price);
   const vEl = $("#td-verdict");
   vEl.className = "td-verdict " + vClass(td.verdict);
   vEl.textContent = (td.verdict === VERDICT.WAIT ? "" : vArrow(td.verdict) + " ") + td.verdict;
   $("#td-text").textContent = td.texto || "";
+  renderBinary(td);
+}
 
-  const planEl = $("#plan");
-  if (plan) {
-    planEl.hidden = false;
-    planEl.querySelector("[data-entry]").textContent = fmtPrice(plan.entry);
-    planEl.querySelector("[data-stop]").textContent =
-      fmtPrice(plan.stop) + ` (−${plan.riscoPct.toFixed(2)}%)`;
-    planEl.querySelector("[data-target]").textContent =
-      fmtPrice(plan.target) + ` (+${plan.ganhoPct.toFixed(2)}%)`;
-    planEl.querySelector("[data-rr]").textContent = "1:" + plan.rr;
+// Equilíbrio + recomendação honesta a partir do pagamento e do histórico.
+function renderBinary(td) {
+  const p = payout / 100;
+  const breakeven = 1 / (1 + p);
+  $("#breakeven").textContent = (breakeven * 100).toFixed(1) + "%";
+
+  const recoEl = $("#reco");
+  // Candidatos: tempos cujo acerto medido passa do equilíbrio E a direção
+  // atual bate com o veredito top-down.
+  let melhor = null;
+  if (td && td.verdict !== VERDICT.WAIT) {
+    for (const tf of TIMEFRAMES) {
+      const bt = btCache[tf];
+      if (!bt || bt.n < 25) continue;
+      if (lastDirByTf[tf] !== td.verdict) continue;
+      const margem = bt.winRate - breakeven;
+      if (margem > 0.02 && (!melhor || margem > melhor.margem)) {
+        melhor = { tf, winRate: bt.winRate, margem };
+      }
+    }
+  }
+  if (melhor) {
+    recoEl.textContent = `${td.verdict} · expiração ${melhor.tf} (acerto ${(melhor.winRate * 100).toFixed(0)}%)`;
+    recoEl.style.color = "var(--buy)";
+  } else if (td && td.verdict === VERDICT.WAIT) {
+    recoEl.textContent = "Não operar — sem alinhamento";
+    recoEl.style.color = "var(--wait)";
   } else {
-    planEl.hidden = true;
+    recoEl.textContent = "Não operar — nenhuma expiração passa do equilíbrio";
+    recoEl.style.color = "var(--sell)";
   }
 }
 
@@ -133,7 +160,8 @@ async function maybeBacktest() {
     await Promise.all(
       TIMEFRAMES.map(async (tf) => {
         const candles = await fetchCandles(symbol, tf, BT_DEPTH);
-        btCache[tf] = runBacktest(candles);
+        const b = runBinaryBacktest(candles, { expiryBars: 1, payout: payout / 100 });
+        btCache[tf] = { n: b.n, winRate: b.winRate };
       })
     );
     lastBtAt = Date.now();
@@ -144,7 +172,7 @@ async function maybeBacktest() {
 
 async function run(reset = false) {
   if (reset) {
-    renderTopDown(null, { verdict: VERDICT.WAIT, texto: "carregando…" }, null);
+    renderTopDown(null, { verdict: VERDICT.WAIT, texto: "carregando…" });
     buildCards();
   }
   try {
@@ -160,6 +188,7 @@ async function run(reset = false) {
     let price = null;
     for (const [tf, r] of results) {
       byTf[tf] = r;
+      lastDirByTf[tf] = r.ok ? r.verdict : VERDICT.WAIT;
       if (r.ok) price = r.price;
     }
 
@@ -169,14 +198,7 @@ async function run(reset = false) {
     for (const [tf, r] of results) renderCard(tf, r, btCache[tf]);
 
     const td = topDown(byTf["15m"], byTf["5m"], byTf["1m"]);
-    const base =
-      td.verdict !== VERDICT.WAIT
-        ? byTf["5m"].verdict === td.verdict
-          ? byTf["5m"]
-          : byTf["15m"]
-        : null;
-    const plan = base ? entryPlan(base) : null;
-    renderTopDown(price, td, plan);
+    renderTopDown(price, td);
 
     setStatus("live", `${source || "ao vivo"} · ${new Date().toLocaleTimeString("pt-BR")}`);
   } catch (err) {
@@ -190,8 +212,23 @@ async function run(reset = false) {
   }
 }
 
+function bindPayout() {
+  const inp = $("#payout");
+  inp.value = payout;
+  inp.addEventListener("change", () => {
+    payout = clampPayout(+inp.value);
+    inp.value = payout;
+    localStorage.setItem("sc_payout", payout);
+    run(); // acerto não muda com o payout; só a avaliação/recomendação
+  });
+  inp.addEventListener("input", () => {
+    $("#breakeven").textContent = (100 / (1 + clampPayout(+inp.value) / 100)).toFixed(1) + "%";
+  });
+}
+
 function start() {
   buildSymbolSelect();
+  bindPayout();
   buildCards();
   run(true);
   clearInterval(timer);

@@ -37,25 +37,34 @@
     </div>
     <strong class="td-verdict wait" id="td-verdict">—</strong>
     <p class="td-text" id="td-text">analisando os três tempos…</p>
-    <div class="plan" id="plan" hidden>
-      <div class="plan-cell"><span>Entrada</span><b data-entry>—</b></div>
-      <div class="plan-cell"><span>Stop</span><b class="neg" data-stop>—</b></div>
-      <div class="plan-cell"><span>Alvo</span><b class="pos" data-target>—</b></div>
-      <div class="plan-cell"><span>Risco/Retorno</span><b data-rr>—</b></div>
+    <div class="binbar">
+      <label class="payout">
+        <span>Pagamento (payout)</span>
+        <span class="payin"><input type="number" id="payout" min="10" max="100" step="1" value="85" inputmode="numeric">%</span>
+      </label>
+      <div class="payout">
+        <span>Acerto p/ empatar</span>
+        <b id="breakeven">—</b>
+      </div>
+      <div class="payout reco">
+        <span>Recomendação</span>
+        <b id="reco">—</b>
+      </div>
     </div>
   </section>
 
   <main class="cards" id="cards"><!-- cartões por timeframe --></main>
 
   <section class="bt-explain">
-    <h2>O que é o histórico (backtest)</h2>
+    <h2>Como ler (opção binária)</h2>
     <p>
       Em cada vela passada, o app recalcula o sinal usando <b>só o que era conhecido até ali</b>
-      e simula a operação (stop e alvo por ATR) para ver se teria dado certo. O <b>acerto</b> e a
-      <b>expectativa bruta</b> medem se a <b>direção</b> do sinal tem vantagem; a <b>expectativa
-      líquida</b> desconta um custo realista por operação. Expectativa líquida negativa =
-      aquele tempo gráfico <b>perde dinheiro no longo prazo</b>, por mais que acerte algumas.
-      Amostra pequena (poucas operações) não prova nada.
+      e confere se, na <b>expiração</b> (1 vela do tempo), o preço fechou do lado do sinal. O
+      <b>acerto</b> é a taxa real de vitórias. Como a plataforma paga menos no ganho (ex.: 85%) do
+      que tira na perda (100%), você precisa acertar <b>mais que o equilíbrio</b> só pra empatar —
+      com 85%, isso é <b>54,1%</b>. Acerto perto de 50% (moeda jogada) <b>perde dinheiro</b>. Essa
+      diferença é a margem da casa, e é por isso que opção binária é restrita/proibida para o
+      varejo em muitos países.
     </p>
   </section>
 
@@ -70,7 +79,7 @@
   </section>
 
   <footer class="foot">
-    Dados ao vivo: Binance / OKX / Coinbase (públicos) · Backtest com custo estimado · Cálculo 100% no seu navegador
+    Dados ao vivo: Binance / OKX / Coinbase (públicos) · Acerto medido vs. pagamento · Cálculo 100% no seu navegador
   </footer>
 
   <script type="module" src="assets/js/app.js"></script>

@@ -8,6 +8,49 @@
 import { analyze, VERDICT } from "./engine.js";
 
 /**
+ * Backtest para OPÇÃO BINÁRIA (compra/venda com expiração fixa).
+ * Não há alvo nem stop: ganha se, na expiração, o preço fechou do lado do sinal.
+ * candles: array cronológico. expiryBars: quantas velas até a expiração.
+ * payout: fração paga no ganho (0.85 = 85%). Perde = -100% (−1).
+ * Mede quantas vezes acertou e compara com o ponto de equilíbrio.
+ */
+export function runBinaryBacktest(candles, { expiryBars = 1, payout = 0.85 } = {}) {
+  const warmup = 40;
+  let wins = 0, losses = 0, pushes = 0;
+  let i = warmup;
+  while (i < candles.length - expiryBars) {
+    const r = analyze(candles.slice(0, i + 1));
+    if (!r.ok || r.verdict === VERDICT.WAIT) { i++; continue; }
+    const long = r.verdict === VERDICT.BUY;
+    const entry = candles[i].c;
+    const exp = candles[i + expiryBars].c;
+    if (exp === entry) pushes++;
+    else if (long ? exp > entry : exp < entry) wins++;
+    else losses++;
+    i += expiryBars; // próxima operação após a expiração (sem sobrepor)
+  }
+  const n = wins + losses;
+  const winRate = n ? wins / n : 0; // fração 0..1 (empates fora)
+  return { n, wins, losses, pushes, winRate, expiryBars, ...evalPayout(winRate, n, payout) };
+}
+
+/**
+ * Dado o acerto medido, avalia contra um pagamento específico.
+ * Separado para recalcular na hora quando o usuário muda o payout,
+ * sem precisar rodar o backtest de novo (o acerto não depende do payout).
+ */
+export function evalPayout(winRate, n, payout) {
+  const breakeven = 1 / (1 + payout); // acerto mínimo pra empatar
+  const expectancy = n ? winRate * payout - (1 - winRate) : 0; // por operação
+  let edge;
+  if (n < 25) edge = "poucos dados";
+  else if (winRate > breakeven + 0.02) edge = "acima do equilíbrio";
+  else if (winRate >= breakeven - 0.01) edge = "no equilíbrio";
+  else edge = "abaixo do equilíbrio";
+  return { breakeven, expectancy, payout, edge };
+}
+
+/**
  * candles: array cronológico de { t,o,h,l,c,v }.
  * opts: atrMult (stop), rr (alvo = rr×risco), maxHold (velas máx. na operação),
  *       custoPct (custo de ida+volta por operação, em % do preço).
