@@ -74,9 +74,10 @@ body {
 }
 .payout > span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
 .payout b { font-size: 16px; font-variant-numeric: tabular-nums; }
-.payout select {
-  background: var(--bg); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: 6px 10px; font-size: 16px; font-weight: 700; cursor: pointer;
+.payin { display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 700; color: var(--text); }
+.payin input {
+  width: 58px; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 8px; font-size: 16px; font-weight: 700; text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .payout.reco b { font-size: 14px; line-height: 1.35; display: block; }
@@ -115,6 +116,20 @@ body {
 .card.wait::before { background: var(--wait); }
 
 .votes-line { font-size: 13px; color: var(--muted); margin-bottom: 16px; min-height: 18px; }
+
+/* Os 4 indicadores */
+.inds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
+.ind {
+  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  font-size: 12px; padding: 5px 9px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-2); color: var(--muted);
+}
+.ind i { font-style: normal; font-size: 12px; line-height: 1; }
+.ind.alta { border-color: rgba(22,199,132,.4); }
+.ind.alta i { color: var(--buy); }
+.ind.baixa { border-color: rgba(234,57,67,.4); }
+.ind.baixa i { color: var(--sell); }
+.ind.neutro i { color: var(--muted); }
 
 /* Barras */
 .bar-block { margin-top: 12px; }

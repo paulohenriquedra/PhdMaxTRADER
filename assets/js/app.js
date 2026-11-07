@@ -48,6 +48,7 @@ function buildCards() {
       <div class="tf"><span>${tf}</span><span class="price" data-price>—</span></div>
       <div class="verdict wait"><span class="arrow">■</span><span data-verdict>ESPERAR</span></div>
       <div class="votes-line" data-votes>analisando…</div>
+      <div class="inds" data-inds></div>
       <div class="bar-block">
         <div class="bar-head"><span class="name">Confluência</span><span class="val" data-conf-val>—</span></div>
         <div class="bar conf"><span class="wait" data-conf-bar></span></div>
@@ -81,6 +82,11 @@ function renderCard(tf, r, bt) {
   vEl.querySelector(".arrow").textContent = vArrow(r.verdict);
   vEl.querySelector("[data-verdict]").textContent = r.verdict;
   card.querySelector("[data-votes]").textContent = r.resumoVotos;
+
+  const dirArrow = (d) => (d === "alta" ? "▲" : d === "baixa" ? "▼" : "■");
+  card.querySelector("[data-inds]").innerHTML = r.votes
+    .map((v) => `<div class="ind ${v.dir}" title="${v.detalhe}"><span>${v.nome}</span><i>${dirArrow(v.dir)}</i></div>`)
+    .join("");
 
   card.querySelector("[data-conf-val]").textContent = r.confluence + "%";
   const cb = card.querySelector("[data-conf-bar]");
@@ -218,13 +224,16 @@ async function run(reset = false) {
 }
 
 function bindPayout() {
-  const sel = $("#payout");
-  sel.value = String(payout);
-  if (!sel.value) { sel.value = "90"; payout = 90; } // valor salvo fora da lista
-  sel.addEventListener("change", () => {
-    payout = clampPayout(+sel.value);
+  const inp = $("#payout");
+  inp.value = payout;
+  inp.addEventListener("change", () => {
+    payout = clampPayout(+inp.value);
+    inp.value = payout;
     localStorage.setItem("sc_payout", payout);
     run(); // acerto não muda com o payout; só a avaliação/recomendação
+  });
+  inp.addEventListener("input", () => {
+    $("#breakeven").textContent = (100 / (1 + clampPayout(+inp.value) / 100)).toFixed(1) + "%";
   });
 }
 
