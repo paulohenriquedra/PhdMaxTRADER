@@ -92,14 +92,12 @@ function renderList() {
 
   box.innerHTML = rows.map((r) => {
     const a = r.a, sc = r.sc, act = r.act;
-    const right = act.hot
-      ? `<a class="mgo" href="${BROKER}" target="_blank" rel="noopener noreferrer">Operar ↗</a>`
-      : `<span class="mclk">${remTxt}</span>`;
+    const operar = `<a class="mgo${act.hot ? " hot" : ""}" href="${BROKER}" target="_blank" rel="noopener noreferrer">Operar ↗</a>`;
     return `<div class="mrow ${act.cls}${act.hot ? " hot" : ""}">
       <div class="mrow-top">
         <span class="msym">${r.label}</span>
-        <span class="maction ${act.cls}">${act.txt}</span>
-        ${right}
+        <span class="maction ${act.cls}">${act.txt} <span class="mclk">${remTxt}</span></span>
+        ${operar}
       </div>
       <div class="mbars">
         ${miniBar("Conf", sc.conf, a.confluence + "%")}

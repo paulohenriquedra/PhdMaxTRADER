@@ -94,12 +94,14 @@ body {
 .maction.sell { color: var(--sell); }
 .maction.wait { color: var(--wait); }
 .maction.no { color: var(--muted); }
-.mclk { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.mclk { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 500; margin-left: 2px; }
 .mgo {
-  flex: none; text-decoration: none; font-weight: 700; font-size: 13px; color: #fff;
-  background: var(--accent); border-radius: 8px; padding: 6px 12px;
+  flex: none; text-decoration: none; font-weight: 700; font-size: 12.5px;
+  color: var(--accent); background: transparent; border: 1px solid var(--accent);
+  border-radius: 8px; padding: 6px 11px; white-space: nowrap;
 }
-.mgo:hover { filter: brightness(1.1); }
+.mgo:hover { background: rgba(59,130,246,.12); }
+.mgo.hot { color: #fff; background: var(--accent); border-color: var(--accent); }
 .mbars { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 9px; }
 .mbar { display: flex; align-items: center; gap: 7px; font-size: 11px; }
 .mbl { color: var(--muted); width: 30px; flex: none; }
