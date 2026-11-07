@@ -73,6 +73,20 @@
     Dados ao vivo: Binance / OKX / Coinbase (públicos) · Cálculo 100% no seu navegador
   </footer>
 
+  <!-- Gráfico de velas (abre ao tocar numa cripto) -->
+  <div class="chart-modal" id="chartModal" hidden>
+    <div class="chart-box">
+      <div class="chart-head">
+        <span id="chart-title">—</span>
+        <a class="chart-op" id="chart-op" href="https://assettbroker.com/app/traderoom" target="_blank" rel="noopener noreferrer">Operar ↗</a>
+        <button type="button" id="chart-close" aria-label="Fechar">✕</button>
+      </div>
+      <div id="chart" class="chart-area"></div>
+      <div class="chart-foot" id="chart-foot">velas em tempo real · EMA 9 e 21</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 import { fetchCandles, SYMBOLS } from "./data.js";
 import { analyze, VERDICT } from "./engine.js";
 import { runBinaryBacktest, evalPayout } from "./backtest.js";
+import { ema } from "./indicators.js";
 
 const BROKER = "https://assettbroker.com/app/traderoom";
 const REFRESH_MS = 10000;       // re-busca os dados
@@ -93,7 +94,7 @@ function renderList() {
   box.innerHTML = rows.map((r) => {
     const a = r.a, sc = r.sc, act = r.act;
     const operar = `<a class="mgo${act.hot ? " hot" : ""}" href="${BROKER}" target="_blank" rel="noopener noreferrer">Operar ↗</a>`;
-    return `<div class="mrow ${act.cls}${act.hot ? " hot" : ""}">
+    return `<div class="mrow ${act.cls}${act.hot ? " hot" : ""}" data-sym="${r.v}">
       <div class="mrow-top">
         <span class="msym">${r.label}</span>
         <span class="maction ${act.cls}">${act.txt} <span class="mclk">${remTxt}</span></span>
@@ -144,6 +145,7 @@ async function refresh() {
     );
     maybeBacktest();
     renderList();
+    updateOpenChart();
     checkNotifications();
     setStatus("live", `${source || "ao vivo"} · ${new Date().toLocaleTimeString("pt-BR")}`);
     if (!ws) connectWS();
@@ -205,7 +207,7 @@ function scheduleWsRender() {
   wsRenderPending = true;
   setTimeout(() => {
     wsRenderPending = false;
-    try { renderList(); checkNotifications(); setStatus("live", `tempo real · ${new Date().toLocaleTimeString("pt-BR")}`); } catch (_) {}
+    try { renderList(); updateOpenChart(); checkNotifications(); setStatus("live", `tempo real · ${new Date().toLocaleTimeString("pt-BR")}`); } catch (_) {}
   }, 300);
 }
 
@@ -271,7 +273,7 @@ function bindOvTf() {
       localStorage.setItem("sc_ovtf", ovTf);
       box.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.tf === ovTf));
       candlesSym = {}; aCache = {}; btCacheSym = {}; lastBtAt = 0;
-      closeWS(); wsFails = 0;
+      closeWS(); wsFails = 0; closeChart();
       $("#mlist").innerHTML = `<div class="ovempty">carregando ${ovTf}…</div>`;
       refresh();
     });
@@ -288,10 +290,79 @@ function bindPayout() {
   });
 }
 
+// ---- Gráfico de velas (Lightweight Charts) ----
+let chart = null, candleSeries = null, ema9S = null, ema21S = null, openChartSym = null;
+const toBar = (x) => ({ time: Math.floor(x.t / 1000), open: x.o, high: x.h, low: x.l, close: x.c });
+function emaBars(c, p) {
+  const e = ema(c.map((x) => x.c), p);
+  const out = [];
+  for (let i = 0; i < c.length; i++) if (e[i] != null) out.push({ time: Math.floor(c[i].t / 1000), value: e[i] });
+  return out;
+}
+function openChart(sym) {
+  const modal = $("#chartModal"), el = $("#chart");
+  openChartSym = sym;
+  $("#chart-title").textContent = `${SYMBOL_LABEL[sym] || sym} · ${ovTf}`;
+  const op = $("#chart-op"); if (op) op.href = BROKER;
+  modal.hidden = false;
+  if (typeof LightweightCharts === "undefined") {
+    $("#chart-foot").textContent = "gráfico indisponível (biblioteca não carregou)";
+    return;
+  }
+  if (chart) { try { chart.remove(); } catch (_) {} chart = null; }
+  el.innerHTML = "";
+  chart = LightweightCharts.createChart(el, {
+    width: el.clientWidth, height: el.clientHeight,
+    layout: { background: { color: "#141b26" }, textColor: "#8a9bb0", fontFamily: "Inter, sans-serif" },
+    grid: { vertLines: { color: "#1a2230" }, horzLines: { color: "#1a2230" } },
+    rightPriceScale: { borderColor: "#223042" },
+    timeScale: { borderColor: "#223042", timeVisible: true, secondsVisible: false },
+  });
+  candleSeries = chart.addCandlestickSeries({ upColor: "#16c784", downColor: "#ea3943", wickUpColor: "#16c784", wickDownColor: "#ea3943", borderVisible: false });
+  ema9S = chart.addLineSeries({ color: "#3b82f6", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  ema21S = chart.addLineSeries({ color: "#f0b429", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  const c = candlesSym[sym] || [];
+  candleSeries.setData(c.map(toBar));
+  ema9S.setData(emaBars(c, 9));
+  ema21S.setData(emaBars(c, 21));
+  chart.timeScale().fitContent();
+}
+function updateOpenChart() {
+  if (!chart || !openChartSym || !candleSeries) return;
+  const c = candlesSym[openChartSym];
+  if (!c || !c.length) return;
+  try {
+    candleSeries.update(toBar(c[c.length - 1]));
+    const cl = c.map((x) => x.c), t = Math.floor(c[c.length - 1].t / 1000);
+    const e9 = ema(cl, 9).at(-1), e21 = ema(cl, 21).at(-1);
+    if (e9 != null) ema9S.update({ time: t, value: e9 });
+    if (e21 != null) ema21S.update({ time: t, value: e21 });
+  } catch (_) {}
+}
+function closeChart() {
+  const modal = $("#chartModal"); if (modal) modal.hidden = true;
+  openChartSym = null;
+  if (chart) { try { chart.remove(); } catch (_) {} chart = null; candleSeries = ema9S = ema21S = null; }
+}
+function bindChart() {
+  $("#chart-close")?.addEventListener("click", closeChart);
+  $("#chartModal")?.addEventListener("click", (e) => { if (e.target.id === "chartModal") closeChart(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
+  $("#mlist")?.addEventListener("click", (e) => {
+    if (e.target.closest(".mgo")) return; // botão Operar: deixa o link abrir
+    const row = e.target.closest(".mrow");
+    if (row && row.dataset.sym) openChart(row.dataset.sym);
+  });
+  window.addEventListener("resize", () => {
+    if (chart) { const el = $("#chart"); chart.applyOptions({ width: el.clientWidth, height: el.clientHeight }); }
+  });
+}
+
 function start() {
   bindOvTf();
   bindPayout();
   bindAlerts();
+  bindChart();
   registerSW();
   refresh();
   tickClocks();
