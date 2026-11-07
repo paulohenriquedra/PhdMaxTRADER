@@ -21,8 +21,9 @@ let ovTimer = null;
 let lastBtAt = 0;
 let btCache = {}; // { tf: {n, winRate} }
 let lastDirByTf = {}; // direção atual por tf, para a recomendação
-let prevConf = {};    // confluência anterior por cripto (p/ detectar 100%)
+let prevAlert = {};   // se a cripto já estava elegível a alerta (p/ detectar transição)
 let lastNotifAt = {}; // última notificação por cripto
+const LOW_VOL = 35;   // volatilidade "baixa" = barra verde (< 35)
 let swReg = null;
 const ENTRY_WINDOW_S = 8; // "entrar agora" nos últimos N segundos da vela
 let lastDetail = null;    // { byTf, price } do detalhe atual
@@ -417,7 +418,7 @@ function bindAlerts() {
     if (perm !== "granted") perm = await Notification.requestPermission();
     if (perm === "granted") {
       localStorage.setItem("sc_alerts", "1");
-      fireNotif("Alertas ativados", "Você será avisado quando uma cripto atingir 100% de confluência.", null);
+      fireNotif("Alertas ativados", "Você será avisado quando uma cripto tiver 100% de confluência e volatilidade baixa.", null);
     }
     updateAlertsBtn();
   });
@@ -435,12 +436,18 @@ function fireNotif(title, body, sym) {
 function checkNotifications(list) {
   const now = Date.now();
   for (const x of list) {
-    const was = prevConf[x.v] || 0;
-    prevConf[x.v] = x.confluence;
+    // Elegível: 100% de confluência E volatilidade baixa (sinal firme e calmo).
+    const eligible = x.confluence >= 100 && x.risk < LOW_VOL;
+    const was = prevAlert[x.v] || false;
+    prevAlert[x.v] = eligible;
     if (!alertsOn()) continue;
-    if (x.confluence >= 100 && was < 100 && now - (lastNotifAt[x.v] || 0) > NOTIF_THROTTLE) {
+    if (eligible && !was && now - (lastNotifAt[x.v] || 0) > NOTIF_THROTTLE) {
       lastNotifAt[x.v] = now;
-      fireNotif(`${x.label} · 100% de confluência`, `${x.verdict} no ${ovTf} — toque para abrir`, x.v);
+      fireNotif(
+        `${x.label} · 100% confluência · vol baixa`,
+        `${x.verdict} no ${ovTf} (vol ${x.risk}%) — toque para abrir`,
+        x.v
+      );
     }
   }
 }
