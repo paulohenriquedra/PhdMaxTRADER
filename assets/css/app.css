@@ -85,7 +85,7 @@ body {
 
 /* Cards */
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 720px) { .cards { grid-template-columns: 1fr; } .ov-verdict strong { font-size: 20px; } }
+@media (max-width: 720px) { .cards { grid-template-columns: 1fr; } }
 
 .card {
   background: var(--card); border: 1px solid var(--border); border-radius: 18px;
@@ -179,3 +179,46 @@ body {
 .disclaimer p { margin: 0; font-size: 13.5px; line-height: 1.6; color: #d9cfa6; }
 .disclaimer b { color: #fff; }
 .foot { margin-top: 18px; text-align: center; font-size: 12px; color: var(--muted); }
+
+/* ===== Ajustes para celular ===== */
+@media (max-width: 560px) {
+  body { padding: 0 12px 36px; }
+
+  .topbar { padding: 14px 0 10px; gap: 10px; }
+  .brand { font-size: 16px; gap: 8px; }
+  .brand .dot { width: 9px; height: 9px; }
+  .controls { gap: 10px; }
+  .sel select { padding: 8px 10px; font-size: 14px; min-width: 82px; }
+  .status { font-size: 12px; }
+
+  .topdown { padding: 14px 15px; margin-bottom: 14px; border-radius: 16px; }
+  .ov-label { font-size: 10px; }
+  .td-price { font-size: 17px; }
+  .td-verdict { font-size: 27px; margin: 6px 0 5px; }
+  .td-text { font-size: 13.5px; }
+  .binbar { margin-top: 12px; gap: 8px; }
+  .payout { padding: 9px 11px; border-radius: 10px; }
+  .payout > span { font-size: 10px; }
+
+  .cards { gap: 12px; }
+  .card { padding: 15px 15px 16px; border-radius: 16px; }
+  .card .tf .price { display: none; }   /* preço já aparece no topo */
+  .verdict { font-size: 25px; margin: 12px 0 5px; gap: 8px; }
+  .verdict .arrow { font-size: 20px; }
+  .votes-line { margin-bottom: 12px; font-size: 12.5px; }
+  .inds { gap: 5px; }
+  .ind { font-size: 11.5px; padding: 5px 8px; }
+  .bar-block { margin-top: 10px; }
+  .bt-row { margin-top: 12px; padding-top: 10px; font-size: 12px; }
+
+  .bt-explain, .disclaimer { padding: 14px 15px; margin-top: 16px; border-radius: 14px; }
+  .bt-explain h2, .disclaimer h2 { font-size: 12px; }
+  .bt-explain p, .disclaimer p { font-size: 12.5px; line-height: 1.55; }
+  .foot { font-size: 11px; margin-top: 16px; }
+}
+
+/* telas muito estreitas: os 4 indicadores em 1 coluna não precisam; mantém 2 */
+@media (max-width: 340px) {
+  .td-verdict { font-size: 24px; }
+  .verdict { font-size: 22px; }
+}
