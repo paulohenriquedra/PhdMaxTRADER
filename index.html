@@ -38,10 +38,13 @@
   <section class="overview" id="overview">
     <div class="ov-top">
       <span class="ov-label">Mercado · por confluência e volatilidade</span>
-      <div class="ovtf" id="ovtf" role="group" aria-label="Tempo gráfico do ranking">
-        <button type="button" data-tf="1m">1m</button>
-        <button type="button" data-tf="5m" class="on">5m</button>
-        <button type="button" data-tf="15m">15m</button>
+      <div class="ovright">
+        <span class="ovclock" data-ovclock title="Tempo até a vela fechar">—</span>
+        <div class="ovtf" id="ovtf" role="group" aria-label="Tempo gráfico do ranking">
+          <button type="button" data-tf="1m">1m</button>
+          <button type="button" data-tf="5m" class="on">5m</button>
+          <button type="button" data-tf="15m">15m</button>
+        </div>
       </div>
     </div>
     <div class="ovlist" id="ovlist"><div class="ovempty">carregando mercado…</div></div>
@@ -82,7 +85,9 @@
       que tira na perda (100%), você precisa acertar <b>mais que o equilíbrio</b> só pra empatar —
       com 85%, isso é <b>54,1%</b>. Acerto perto de 50% (moeda jogada) <b>perde dinheiro</b>. Essa
       diferença é a margem da casa, e é por isso que opção binária é restrita/proibida para o
-      varejo em muitos países.
+      varejo em muitos países. <b>Tempo da vela:</b> o sinal usa a vela em formação e <b>pode
+      mudar até ela fechar</b> — por isso cada cartão mostra quanto falta pro fechamento; muitos
+      preferem decidir perto do fim da vela, quando o sinal está mais firme.
     </p>
   </section>
 

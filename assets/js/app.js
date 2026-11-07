@@ -10,6 +10,7 @@ const NOTIF_THROTTLE = 5 * 60 * 1000; // no máx. 1 alerta por cripto a cada 5 m
 const BT_DEPTH = 300; // velas para o backtest
 const BT_EVERY_MS = 60000; // recalcula o histórico no máx. a cada 60s
 const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
+const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 }; // duração de cada vela
 
 const $ = (s) => document.querySelector(s);
 let symbol = localStorage.getItem("sc_symbol") || "BTCUSDT";
@@ -60,7 +61,7 @@ function buildCards() {
   $("#cards").innerHTML = TIMEFRAMES.map(
     (tf) => `
     <article class="card wait" id="card-${tf}">
-      <div class="tf"><span>${tf}</span><span class="price" data-price>—</span></div>
+      <div class="tf"><span>${tf} · <span class="clk" data-dur="${DUR[tf]}">—</span></span><span class="price" data-price>—</span></div>
       <div class="verdict wait"><span class="arrow">■</span><span data-verdict>ESPERAR</span></div>
       <div class="votes-line" data-votes>analisando…</div>
       <div class="inds" data-inds></div>
@@ -370,6 +371,32 @@ function checkNotifications(list) {
   }
 }
 
+// Contador regressivo até a vela fechar (local, 1x por segundo, sem rede).
+// As velas da Binance são alinhadas ao relógio UTC, então o tempo restante é
+// a duração menos o quanto já passou no período atual.
+function fmtCountdown(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m}:${String(s % 60).padStart(2, "0")}` : `${s}s`;
+}
+
+function tickClocks() {
+  const now = Date.now();
+  document.querySelectorAll(".clk[data-dur]").forEach((el) => {
+    const d = +el.dataset.dur;
+    const rem = d - (now % d);
+    el.textContent = "fecha " + fmtCountdown(rem);
+    el.classList.toggle("soon", rem <= 10000);
+  });
+  const ov = $("[data-ovclock]");
+  if (ov) {
+    const d = DUR[ovTf] || 300000;
+    const rem = d - (now % d);
+    ov.textContent = "vela fecha em " + fmtCountdown(rem);
+    ov.classList.toggle("soon", rem <= 10000);
+  }
+}
+
 function start() {
   const urlSym = new URLSearchParams(location.search).get("sym");
   if (urlSym && SYMBOL_LABEL[urlSym]) symbol = urlSym;
@@ -381,8 +408,10 @@ function start() {
   buildCards();
   run(true);
   runOverview();
+  tickClocks();
   clearInterval(timer); timer = setInterval(run, REFRESH_MS);
   clearInterval(ovTimer); ovTimer = setInterval(runOverview, OV_REFRESH_MS);
+  setInterval(tickClocks, 1000);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { clearInterval(timer); clearInterval(ovTimer); }
     else {

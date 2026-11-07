@@ -98,6 +98,13 @@ body {
 .ovdir.wait { color: var(--wait); }
 .ovm { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ovm b { color: var(--text); }
+.ovclock { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ovclock.soon { color: var(--sell); font-weight: 700; }
+.ovright { display: flex; align-items: center; gap: 10px; }
+
+/* Contador nos cartões */
+.clk { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.clk.soon { color: var(--sell); font-weight: 700; }
 @media (max-width: 480px) {
   .ovrow { grid-template-columns: 1fr auto; row-gap: 4px; column-gap: 8px; padding: 9px 11px; }
   .ovdir { grid-column: 2; grid-row: 1; }
