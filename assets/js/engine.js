@@ -84,6 +84,10 @@ export function analyze(candles) {
   const concordam = dirLabel === UP ? ups : dirLabel === DOWN ? downs : maior;
   const confluence = Math.round((concordam / total) * 100);
 
+  // Viés direcional "suave" (mesmo sem os 3/4): serve ao modelo top-down.
+  const bias = ups > downs ? UP : downs > ups ? DOWN : FLAT;
+  const score = ups - downs;
+
   // ---- Risco (volatilidade real) ----
   const atrPct = atrVal != null && price ? (atrVal / price) * 100 : 0;
   // (a) Regime: volatilidade agora vs. o normal recente da própria cripto/tempo.
@@ -107,12 +111,78 @@ export function analyze(candles) {
     price,
     verdict,
     dirLabel,
+    bias,
+    score,
     confluence,
     risk,
     riskLabel,
+    atr: atrVal,
     atrPct,
     resumoVotos,
     votes,
+  };
+}
+
+export const DIR = { UP, DOWN, FLAT };
+
+/**
+ * Modelo top-down: o 15m define a direção (tendência), o 5m confirma,
+ * o 1m cronometra a entrada. Devolve UM veredito, não três soltos.
+ */
+export function topDown(r15, r5, r1) {
+  if (!r15?.ok || !r5?.ok || !r1?.ok) {
+    return { ok: false, verdict: VERDICT.WAIT, texto: "Aguardando dados dos três tempos" };
+  }
+  const dir = r15.bias;
+  if (dir === FLAT) {
+    return {
+      ok: true, verdict: VERDICT.WAIT, forca: 0,
+      texto: "15m sem tendência clara (lateral) — melhor não operar agora",
+    };
+  }
+  const lado = dir === UP ? "alta" : "baixa";
+  const confirma = r5.bias === dir;
+  const gatilho = r1.bias === dir;
+
+  if (confirma && gatilho) {
+    return {
+      ok: true,
+      verdict: dir === UP ? VERDICT.BUY : VERDICT.SELL,
+      forca: 100,
+      texto: `Tendência de ${lado} no 15m, confirmada no 5m e disparada no 1m — a favor da tendência`,
+    };
+  }
+  if (confirma && !gatilho) {
+    return {
+      ok: true, verdict: VERDICT.WAIT, forca: 60,
+      texto: `Tendência de ${lado} no 15m e 5m — aguarde o 1m confirmar antes de entrar`,
+    };
+  }
+  return {
+    ok: true, verdict: VERDICT.WAIT, forca: 30,
+    texto: `15m aponta ${lado}, mas o 5m não confirma — sem alinhamento, espere`,
+  };
+}
+
+/**
+ * Plano de entrada a partir de um veredito direcional.
+ * Stop baseado em ATR; alvo pela relação risco/retorno (rr).
+ */
+export function entryPlan(r, { atrMult = 1.5, rr = 2 } = {}) {
+  if (!r?.ok || r.verdict === VERDICT.WAIT || !r.atr) return null;
+  const long = r.verdict === VERDICT.BUY;
+  const entry = r.price;
+  const dist = atrMult * r.atr;
+  const stop = long ? entry - dist : entry + dist;
+  const target = long ? entry + rr * dist : entry - rr * dist;
+  return {
+    lado: long ? "compra" : "venda",
+    entry,
+    stop,
+    target,
+    riscoPct: (dist / entry) * 100,
+    ganhoPct: (rr * dist / entry) * 100,
+    rr,
   };
 }
 

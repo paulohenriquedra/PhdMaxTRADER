@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Sinalizador de Confluência</title>
-  <meta name="description" content="Leitura técnica em tempo real: viés de compra/venda por confluência de indicadores reais, com risco à mostra. Não é previsão garantida.">
+  <meta name="description" content="Análise técnica em tempo real com modelo top-down, plano de entrada (stop/alvo) e backtest real. Não é previsão garantida.">
   <meta name="theme-color" content="#0b0f14">
   <meta name="color-scheme" content="dark">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,34 +29,48 @@
     </div>
   </header>
 
-  <section class="overview" id="overview">
-    <div class="ov-price">
-      <span class="ov-label">Preço agora</span>
-      <strong id="ov-price-val">—</strong>
+  <!-- Veredito principal: modelo top-down (15m manda, 5m confirma, 1m dispara) -->
+  <section class="topdown" id="topdown">
+    <div class="td-head">
+      <span class="ov-label">Direção do mercado · modelo top-down</span>
+      <span class="td-price" id="td-price">—</span>
     </div>
-    <div class="ov-verdict" id="ov-verdict">
-      <span class="ov-label">Resumo geral</span>
-      <strong id="ov-verdict-val">—</strong>
-      <span class="ov-note" id="ov-verdict-note"></span>
+    <strong class="td-verdict wait" id="td-verdict">—</strong>
+    <p class="td-text" id="td-text">analisando os três tempos…</p>
+    <div class="plan" id="plan" hidden>
+      <div class="plan-cell"><span>Entrada</span><b data-entry>—</b></div>
+      <div class="plan-cell"><span>Stop</span><b class="neg" data-stop>—</b></div>
+      <div class="plan-cell"><span>Alvo</span><b class="pos" data-target>—</b></div>
+      <div class="plan-cell"><span>Risco/Retorno</span><b data-rr>—</b></div>
     </div>
   </section>
 
   <main class="cards" id="cards"><!-- cartões por timeframe --></main>
 
+  <section class="bt-explain">
+    <h2>O que é o histórico (backtest)</h2>
+    <p>
+      Em cada vela passada, o app recalcula o sinal usando <b>só o que era conhecido até ali</b>
+      e simula a operação (stop e alvo por ATR) para ver se teria dado certo. O <b>acerto</b> e a
+      <b>expectativa bruta</b> medem se a <b>direção</b> do sinal tem vantagem; a <b>expectativa
+      líquida</b> desconta um custo realista por operação. Expectativa líquida negativa =
+      aquele tempo gráfico <b>perde dinheiro no longo prazo</b>, por mais que acerte algumas.
+      Amostra pequena (poucas operações) não prova nada.
+    </p>
+  </section>
+
   <section class="disclaimer">
     <h2>Leia antes de operar</h2>
     <p>
-      Isto <b>não é uma previsão garantida</b> nem conselho financeiro. A ferramenta apenas
-      lê indicadores técnicos reais (tendência, RSI, MACD, estocástico) sobre dados ao vivo e
-      mostra para onde as condições <b>atuais</b> estão inclinadas e o quanto o momento está
-      arriscado. O mercado pode virar a qualquer instante e o indicador <b>pode errar</b>.
-      Quando os indicadores não concordam, ele diz <b>ESPERAR</b> — respeite isso. Opere
-      apenas com dinheiro que você pode perder e use gestão de risco.
+      Isto <b>não é previsão garantida</b> nem conselho financeiro. A ferramenta lê indicadores
+      técnicos reais sobre dados ao vivo e mostra a inclinação <b>atual</b> do mercado e o risco.
+      O mercado pode virar e o sinal <b>pode errar</b>. Resultados passados do backtest
+      <b>não garantem</b> resultados futuros. Opere só com dinheiro que você pode perder.
     </p>
   </section>
 
   <footer class="foot">
-    Dados: Binance (público) · Atualiza sozinho · Nada é enviado a servidores externos além da própria Binance
+    Dados ao vivo: Binance / OKX / Coinbase (públicos) · Backtest com custo estimado · Cálculo 100% no seu navegador
   </footer>
 
   <script type="module" src="assets/js/app.js"></script>
