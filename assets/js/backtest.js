@@ -6,27 +6,42 @@
 // se existe vantagem (edge) de verdade.
 
 import { analyze, VERDICT } from "./engine.js";
+import { ema, rsi as rsiSeries, macd as macdSeries, stochastic } from "./indicators.js";
 
 /**
  * Backtest para OPÇÃO BINÁRIA (compra/venda com expiração fixa).
  * Não há alvo nem stop: ganha se, na expiração, o preço fechou do lado do sinal.
- * candles: array cronológico. expiryBars: quantas velas até a expiração.
- * payout: fração paga no ganho (0.85 = 85%). Perde = -100% (−1).
- * Mede quantas vezes acertou e compara com o ponto de equilíbrio.
+ * Otimizado O(n): os indicadores são calculados UMA vez (cada um só usa o
+ * passado, então ler a série no índice i equivale a analisar a fatia até i —
+ * sem "espiar o futuro"), e as velas são percorridas em seguida.
  */
 export function runBinaryBacktest(candles, { expiryBars = 1, payout = 0.85 } = {}) {
   const warmup = 40;
+  const close = candles.map((c) => c.c);
+  const high = candles.map((c) => c.h);
+  const low = candles.map((c) => c.l);
+  const e9 = ema(close, 9), e21 = ema(close, 21);
+  const rs = rsiSeries(close, 14);
+  const hist = macdSeries(close).hist;
+  const st = stochastic(high, low, close);
+
   let wins = 0, losses = 0, pushes = 0;
-  // Subconjunto: só quando os 4 indicadores concordam (confluência 100%).
-  let wins4 = 0, losses4 = 0;
+  let wins4 = 0, losses4 = 0; // subconjunto 4/4
   let i = warmup;
   while (i < candles.length - expiryBars) {
-    const r = analyze(candles.slice(0, i + 1));
-    if (!r.ok || r.verdict === VERDICT.WAIT) { i++; continue; }
-    const long = r.verdict === VERDICT.BUY;
-    const entry = candles[i].c;
-    const exp = candles[i + expiryBars].c;
-    const forte = r.confluence >= 100; // 4/4
+    if (e9[i] == null || e21[i] == null || rs[i] == null || hist[i] == null || st.k[i] == null || st.d[i] == null) { i++; continue; }
+    let up = 0, down = 0;
+    if (e9[i] > e21[i]) up++; else if (e9[i] < e21[i]) down++;
+    if (rs[i] >= 50) up++; else down++;
+    if (hist[i] > 0) up++; else if (hist[i] < 0) down++;
+    if (st.k[i] > st.d[i]) up++; else if (st.k[i] < st.d[i]) down++;
+    let long;
+    if (up >= 3 && up > down) long = true;
+    else if (down >= 3 && down > up) long = false;
+    else { i++; continue; }
+    const entry = close[i];
+    const exp = close[i + expiryBars];
+    const forte = up === 4 || down === 4; // 4/4
     if (exp === entry) pushes++;
     else {
       const ganhou = long ? exp > entry : exp < entry;

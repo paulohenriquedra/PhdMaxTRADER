@@ -165,20 +165,21 @@ function setStatus(state, text) {
   $("#status-text").textContent = text;
 }
 
-async function maybeBacktest() {
+// Calcula o histórico em segundo plano (não trava o render), reusando as
+// velas JÁ buscadas. Atualiza só as linhas de margem e a recomendação.
+function scheduleBacktest(results, byTf, price) {
   if (Date.now() - lastBtAt < BT_EVERY_MS && Object.keys(btCache).length) return;
-  try {
-    await Promise.all(
-      TIMEFRAMES.map(async (tf) => {
-        const candles = await fetchCandles(symbol, tf, BT_DEPTH);
+  setTimeout(() => {
+    try {
+      for (const [tf, candles] of results) {
         const b = runBinaryBacktest(candles, { expiryBars: 1, payout: payout / 100 });
         btCache[tf] = { n: b.n, winRate: b.winRate };
-      })
-    );
-    lastBtAt = Date.now();
-  } catch (_) {
-    /* mantém cache anterior se falhar */
-  }
+        renderCard(tf, byTf[tf], btCache[tf]);
+      }
+      lastBtAt = Date.now();
+      renderTopDown(price, topDown(byTf["15m"], byTf["5m"], byTf["1m"]));
+    } catch (_) { /* mantém cache anterior */ }
+  }, 0);
 }
 
 async function run(reset = false) {
@@ -188,30 +189,29 @@ async function run(reset = false) {
   }
   try {
     let source = null;
+    // Uma busca só por tempo (300 velas), reusada pro ao vivo E pro histórico.
     const results = await Promise.all(
       TIMEFRAMES.map(async (tf) => {
-        const candles = await fetchCandles(symbol, tf, 150);
+        const candles = await fetchCandles(symbol, tf, BT_DEPTH);
         if (candles.source) source = candles.source;
-        return [tf, analyze(candles)];
+        return [tf, candles];
       })
     );
     const byTf = {};
     let price = null;
-    for (const [tf, r] of results) {
+    // Render AO VIVO imediato (não espera o backtest).
+    for (const [tf, candles] of results) {
+      const r = analyze(candles);
       byTf[tf] = r;
       lastDirByTf[tf] = r.ok ? r.verdict : VERDICT.WAIT;
       if (r.ok) price = r.price;
+      renderCard(tf, r, btCache[tf]);
     }
-
-    // Histórico (não precisa recalcular a cada ciclo)
-    await maybeBacktest();
-
-    for (const [tf, r] of results) renderCard(tf, r, btCache[tf]);
-
-    const td = topDown(byTf["15m"], byTf["5m"], byTf["1m"]);
-    renderTopDown(price, td);
-
+    renderTopDown(price, topDown(byTf["15m"], byTf["5m"], byTf["1m"]));
     setStatus("live", `${source || "ao vivo"} · ${new Date().toLocaleTimeString("pt-BR")}`);
+
+    // Histórico depois, em segundo plano.
+    scheduleBacktest(results, byTf, price);
   } catch (err) {
     const msg = err?.message || "falha desconhecida";
     const dica = /failed to fetch|load failed|networkerror/i.test(msg)
