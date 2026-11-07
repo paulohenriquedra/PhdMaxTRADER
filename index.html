@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sinalizador de Confluência</title>
+  <meta name="description" content="Leitura técnica em tempo real: viés de compra/venda por confluência de indicadores reais, com risco à mostra. Não é previsão garantida.">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <span>Sinalizador de <b>Confluência</b></span>
+    </div>
+    <div class="controls">
+      <label class="sel">
+        <span>Cripto</span>
+        <select id="symbol" aria-label="Escolher cripto"></select>
+      </label>
+      <div class="status" id="status" title="Estado da conexão">
+        <span class="live-dot"></span><span id="status-text">conectando…</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="overview" id="overview">
+    <div class="ov-price">
+      <span class="ov-label">Preço agora</span>
+      <strong id="ov-price-val">—</strong>
+    </div>
+    <div class="ov-verdict" id="ov-verdict">
+      <span class="ov-label">Resumo geral</span>
+      <strong id="ov-verdict-val">—</strong>
+      <span class="ov-note" id="ov-verdict-note"></span>
+    </div>
+  </section>
+
+  <main class="cards" id="cards"><!-- cartões por timeframe --></main>
+
+  <section class="disclaimer">
+    <h2>Leia antes de operar</h2>
+    <p>
+      Isto <b>não é uma previsão garantida</b> nem conselho financeiro. A ferramenta apenas
+      lê indicadores técnicos reais (tendência, RSI, MACD, estocástico) sobre dados ao vivo e
+      mostra para onde as condições <b>atuais</b> estão inclinadas e o quanto o momento está
+      arriscado. O mercado pode virar a qualquer instante e o indicador <b>pode errar</b>.
+      Quando os indicadores não concordam, ele diz <b>ESPERAR</b> — respeite isso. Opere
+      apenas com dinheiro que você pode perder e use gestão de risco.
+    </p>
+  </section>
+
+  <footer class="foot">
+    Dados: Binance (público) · Atualiza sozinho · Nada é enviado a servidores externos além da própria Binance
+  </footer>
+
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
