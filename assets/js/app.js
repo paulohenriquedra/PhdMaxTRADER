@@ -16,6 +16,10 @@ let armedDir = {};              // direção travada perto da virada, por cripto
 let day = { date: "", wins: 0, losses: 0, limit: 3 };
 let dayLocked = false;
 let lastLeadBoundary = 0;       // dedup da notificação de 30s por vela
+let pending = [];               // operações aguardando resultado
+let streak = 0;                 // perdas seguidas
+let pauseStreak = +localStorage.getItem("sc_pausestreak") || 2;
+let paused = false;             // pausa temporária após sequência de perdas
 const LOW_VOL = 35;
 const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 };
 const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
@@ -62,6 +66,7 @@ function rowAction(a, sym, remMs, dur) {
 
   if (!strong) return { key: 2, txt: "AGUARDE", cls: "wait", hot: false };
   if (dayLocked) return { key: 1, txt: "🛑 limite do dia", cls: "no", hot: false };
+  if (paused) return { key: 1, txt: "⏸️ em pausa", cls: "no", hot: false };
   if (remMs <= ENTRY_LEAD_S * 1000) return { key: 4, txt: `PREPARAR ${dir} · ${fmtCountdown(remMs)}`, cls, hot: false, dir };
   return { key: 3, txt: dir, cls, hot: false, dir };
 }
@@ -81,9 +86,14 @@ function renderDay() {
   const dw = $("#dw"), dl = $("#dl"), lock = $("#daylock");
   if (dw) dw.textContent = day.wins;
   if (dl) dl.textContent = day.losses;
+  const ds = $("#dstreak"); if (ds) ds.textContent = streak;
   dayLocked = day.losses >= day.limit;
   if (lock) lock.hidden = !dayLocked;
+  const pb = $("#daypause"), pm = $("#pausemsg");
+  if (pb) pb.hidden = !paused;
+  if (pm && paused) pm.textContent = `${streak} perdas seguidas. Dê um tempo, espere o mercado mudar.`;
   const lim = $("#dayLimit"); if (lim && document.activeElement !== lim) lim.value = day.limit;
+  const ps = $("#pauseStreak"); if (ps && document.activeElement !== ps) ps.value = pauseStreak;
 }
 function bindDay() {
   loadDay();
@@ -95,8 +105,70 @@ function bindDay() {
     localStorage.setItem("sc_losslimit", day.limit);
     saveDay(); renderDay(); renderList();
   });
+  $("#pauseStreak")?.addEventListener("change", (e) => {
+    pauseStreak = Math.max(1, Math.min(10, +e.target.value || 2));
+    localStorage.setItem("sc_pausestreak", pauseStreak);
+    renderDay();
+  });
+  $("#pauseResume")?.addEventListener("click", resumeTrading);
   renderDay();
 }
+
+// ---- Registro automático de resultado (Green/Loss) ----
+function flashToast(msg, good) {
+  let t = $("#toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.className = "toast show" + (good === true ? " good" : good === false ? " bad" : "");
+  clearTimeout(flashToast._t);
+  flashToast._t = setTimeout(() => { t.className = "toast"; }, 3800);
+}
+// Ao clicar em Operar: registra a operação (direção do sinal, preço e a vela de resultado).
+function registerTrade(sym) {
+  if (paused || dayLocked) return;
+  const a = aCache[sym];
+  if (!a || !a.ok || (a.verdict !== VERDICT.BUY && a.verdict !== VERDICT.SELL)) return;
+  const dur = DUR[ovTf] || 300000, now = Date.now();
+  const open = Math.round(now / dur) * dur; // vela que a operação cobre
+  pending.push({ sym, dir: a.verdict, entry: a.price, open, at: open + dur, tf: ovTf });
+  flashToast(`Registrado: ${SYMBOL_LABEL[sym]} ${a.verdict} · aguardando resultado`);
+}
+function recordOutcome(sym, win) {
+  if (win) { day.wins++; streak = 0; }
+  else { day.losses++; streak++; }
+  saveDay();
+  flashToast(`${SYMBOL_LABEL[sym] || sym}: ${win ? "GREEN ✓" : "LOSS ✗"}`, win);
+  fireNotif(`${SYMBOL_LABEL[sym] || sym}: ${win ? "GREEN ✓" : "LOSS ✗"}`, win ? "Operação registrada." : "Faz parte. Respeite seu limite.", sym);
+  if (!win && streak >= pauseStreak) enterPause();
+  renderDay();
+}
+function resolvePending() {
+  const now = Date.now();
+  let changed = false;
+  for (let i = pending.length - 1; i >= 0; i--) {
+    const p = pending[i], dur = DUR[p.tf] || 300000;
+    if (now < p.open + dur) continue; // a vela de resultado ainda não fechou
+    const arr = candlesSym[p.sym];
+    if (!arr) continue;
+    const cndl = arr.find((c) => c.t === p.open);
+    if (!cndl) {
+      if (now > p.at + dur * 3) pending.splice(i, 1); // velho demais: descarta
+      continue;
+    }
+    const win = p.dir === VERDICT.BUY ? cndl.c > p.entry : cndl.c < p.entry;
+    pending.splice(i, 1);
+    recordOutcome(p.sym, win);
+    changed = true;
+  }
+  if (changed) renderList();
+}
+function enterPause() {
+  paused = true;
+  renderDay();
+  flashToast(`⏸️ Pausa: ${streak} perdas seguidas. Respire antes de voltar.`, false);
+  fireNotif("⏸️ Pausa recomendada", `${streak} perdas seguidas. Pare um pouco antes de voltar.`, null);
+}
+function resumeTrading() { paused = false; streak = 0; renderDay(); renderList(); }
 
 // ---- Notificação 30s antes da virada da vela ----
 function checkLeadNotification() {
@@ -215,6 +287,7 @@ async function refresh() {
       })
     );
     maybeBacktest();
+    resolvePending();
     renderList();
     updateOpenChart();
     checkNotifications();
@@ -278,7 +351,7 @@ function scheduleWsRender() {
   wsRenderPending = true;
   setTimeout(() => {
     wsRenderPending = false;
-    try { renderList(); updateOpenChart(); checkNotifications(); setStatus("live", `tempo real · ${new Date().toLocaleTimeString("pt-BR")}`); } catch (_) {}
+    try { resolvePending(); renderList(); updateOpenChart(); checkNotifications(); setStatus("live", `tempo real · ${new Date().toLocaleTimeString("pt-BR")}`); } catch (_) {}
   }, 300);
 }
 
@@ -420,8 +493,8 @@ function bindChart() {
   $("#chartModal")?.addEventListener("click", (e) => { if (e.target.id === "chartModal") closeChart(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
   $("#mlist")?.addEventListener("click", (e) => {
-    if (e.target.closest(".mgo")) return; // botão Operar: deixa o link abrir
     const row = e.target.closest(".mrow");
+    if (e.target.closest(".mgo")) { if (row) registerTrade(row.dataset.sym); return; } // Operar: registra e abre o link
     if (row && row.dataset.sym) openChart(row.dataset.sym);
   });
   window.addEventListener("resize", () => {
