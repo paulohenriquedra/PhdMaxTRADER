@@ -68,6 +68,35 @@ body {
 .act.broker:hover { filter: brightness(1.08); }
 .act:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Painel do dia (gestão de perdas) */
+.daybar {
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px;
+  padding: 11px 14px; margin-bottom: 14px;
+}
+.day-stats { font-size: 13px; color: var(--muted); }
+.day-stats .dw { color: var(--buy); }
+.day-stats .dl { color: var(--sell); }
+.day-btns { display: flex; gap: 6px; margin-left: auto; }
+.dbtn {
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  border-radius: 9px; padding: 7px 12px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text);
+}
+.dbtn.win { color: var(--buy); border-color: rgba(22,199,132,.45); }
+.dbtn.loss { color: var(--sell); border-color: rgba(234,57,67,.45); }
+.dbtn:hover { filter: brightness(1.12); }
+.day-lim { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.day-lim input {
+  width: 42px; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 3px 6px; font-size: 13px; font-weight: 700; text-align: right;
+}
+.daylock {
+  background: var(--sell-dim); border: 1px solid var(--sell); border-radius: 14px;
+  padding: 13px 15px; margin-bottom: 14px; color: #ffd9dc; font-size: 13.5px; line-height: 1.5; font-weight: 500;
+}
+.daylock[hidden] { display: none; }
+
 /* Mercado / lista inteligente */
 .overview, .market {
   background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px;

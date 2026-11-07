@@ -13,6 +13,9 @@ const BT_DEPTH = 300;
 const NOTIF_THROTTLE = 5 * 60 * 1000;
 const ENTRY_LEAD_S = 30;        // avisa "PREPARAR" com N segundos de antecedência
 let armedDir = {};              // direção travada perto da virada, por cripto
+let day = { date: "", wins: 0, losses: 0, limit: 3 };
+let dayLocked = false;
+let lastLeadBoundary = 0;       // dedup da notificação de 30s por vela
 const LOW_VOL = 35;
 const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 };
 const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
@@ -58,8 +61,60 @@ function rowAction(a, sym, remMs, dur) {
   if (remMs < dur - 3000 && remMs > 12000) armedDir[sym] = null;
 
   if (!strong) return { key: 2, txt: "AGUARDE", cls: "wait", hot: false };
+  if (dayLocked) return { key: 1, txt: "🛑 limite do dia", cls: "no", hot: false };
   if (remMs <= ENTRY_LEAD_S * 1000) return { key: 4, txt: `PREPARAR ${dir} · ${fmtCountdown(remMs)}`, cls, hot: false, dir };
   return { key: 3, txt: dir, cls, hot: false, dir };
+}
+
+// ---- Controle do dia (gestão de perdas) ----
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function loadDay() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem("sc_day") || "null"); } catch (_) {}
+  const t = todayStr();
+  if (!d || d.date !== t) d = { date: t, wins: 0, losses: 0, limit: (d && d.limit) || +localStorage.getItem("sc_losslimit") || 3 };
+  day = d;
+  saveDay();
+}
+function saveDay() { try { localStorage.setItem("sc_day", JSON.stringify(day)); } catch (_) {} }
+function renderDay() {
+  const dw = $("#dw"), dl = $("#dl"), lock = $("#daylock");
+  if (dw) dw.textContent = day.wins;
+  if (dl) dl.textContent = day.losses;
+  dayLocked = day.losses >= day.limit;
+  if (lock) lock.hidden = !dayLocked;
+  const lim = $("#dayLimit"); if (lim && document.activeElement !== lim) lim.value = day.limit;
+}
+function bindDay() {
+  loadDay();
+  $("#dayWin")?.addEventListener("click", () => { day.wins++; saveDay(); renderDay(); renderList(); });
+  $("#dayLoss")?.addEventListener("click", () => { day.losses++; saveDay(); renderDay(); renderList(); });
+  $("#dayReset")?.addEventListener("click", () => { day.wins = 0; day.losses = 0; saveDay(); renderDay(); renderList(); });
+  $("#dayLimit")?.addEventListener("change", (e) => {
+    day.limit = Math.max(1, Math.min(30, +e.target.value || 3));
+    localStorage.setItem("sc_losslimit", day.limit);
+    saveDay(); renderDay(); renderList();
+  });
+  renderDay();
+}
+
+// ---- Notificação 30s antes da virada da vela ----
+function checkLeadNotification() {
+  if (!alertsOn() || dayLocked) return;
+  const dur = DUR[ovTf] || 300000;
+  const now = Date.now();
+  const rem = dur - (now % dur);
+  const boundary = Math.round((now + rem) / 1000); // próximo fechamento (s)
+  if (rem <= ENTRY_LEAD_S * 1000 && rem > (ENTRY_LEAD_S - 3) * 1000 && boundary !== lastLeadBoundary) {
+    lastLeadBoundary = boundary;
+    const elig = SYMBOLS.map((s) => aCache[s.v])
+      .filter((a) => a && a.ok && a.confluence >= 100 && a.risk < LOW_VOL && a.regime === "tendencia")
+      .sort((x, y) => x.risk - y.risk);
+    if (elig.length) {
+      const a = elig[0];
+      fireNotif(`⏰ 30s · ${SYMBOL_LABEL[a.sym]} ${a.verdict}`, `Prepare e clique na virada (${ovTf}, expiração ${ovTf})`, a.sym);
+    }
+  }
 }
 
 function scores(a) {
@@ -140,6 +195,7 @@ function tickClocks() {
     ov.classList.toggle("soon", r <= 10000);
   }
   renderList(); // re-renderiza (8 linhas) p/ atualizar contador e estado "AGORA"
+  checkLeadNotification();
 }
 
 // ---- Dados ----
@@ -378,6 +434,7 @@ function start() {
   bindPayout();
   bindAlerts();
   bindChart();
+  bindDay();
   registerSW();
   refresh();
   tickClocks();

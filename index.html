@@ -28,6 +28,17 @@
     <a class="act broker" href="https://assettbroker.com/app/traderoom" target="_blank" rel="noopener noreferrer">Abrir corretora ↗</a>
   </div>
 
+  <section class="daybar" id="daybar">
+    <div class="day-stats">Hoje: <b class="dw" id="dw">0</b> ganhos · <b class="dl" id="dl">0</b> perdas</div>
+    <div class="day-btns">
+      <button type="button" id="dayWin" class="dbtn win">✓ Ganhei</button>
+      <button type="button" id="dayLoss" class="dbtn loss">✗ Perdi</button>
+      <button type="button" id="dayReset" class="dbtn" title="Zerar o dia">↺</button>
+    </div>
+    <label class="day-lim">parar com <input type="number" id="dayLimit" min="1" max="30" value="3" inputmode="numeric"> perdas</label>
+  </section>
+  <div class="daylock" id="daylock" hidden>🛑 Chega por hoje — você bateu o limite de perdas. Pare, respire, volte amanhã com a cabeça fresca. Insistir com raiva é como a conta quebra.</div>
+
   <section class="market" id="market">
     <div class="ov-top">
       <span class="ov-label">Mercado — operar ou não, agora</span>
