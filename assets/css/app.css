@@ -68,8 +68,48 @@ body {
 .act.broker:hover { filter: brightness(1.08); }
 .act:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Visão geral (ranking de criptos) */
-.overview {
+/* Mercado / lista inteligente */
+.overview, .market {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 18px;
+}
+.paymini { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.paymini input {
+  width: 46px; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 3px 6px; font-size: 13px; font-weight: 700; text-align: right;
+}
+.mlist { display: flex; flex-direction: column; gap: 8px; }
+.mrow {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 11px 13px; transition: border-color .15s, background .15s;
+}
+.mrow.hot { border-color: var(--buy); box-shadow: 0 0 0 1px var(--buy) inset; }
+.mrow.hot.sell { border-color: var(--sell); box-shadow: 0 0 0 1px var(--sell) inset; animation: entryPulse 1s ease-in-out infinite; }
+.mrow.hot.buy { animation: entryPulse 1s ease-in-out infinite; }
+.mrow.no { opacity: .62; }
+.mrow-top { display: flex; align-items: center; gap: 10px; }
+.msym { font-weight: 800; font-size: 16px; flex: none; min-width: 52px; }
+.maction { flex: 1; font-weight: 800; font-size: 14px; letter-spacing: .01em; }
+.maction.buy { color: var(--buy); }
+.maction.sell { color: var(--sell); }
+.maction.wait { color: var(--wait); }
+.maction.no { color: var(--muted); }
+.mclk { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.mgo {
+  flex: none; text-decoration: none; font-weight: 700; font-size: 13px; color: #fff;
+  background: var(--accent); border-radius: 8px; padding: 6px 12px;
+}
+.mgo:hover { filter: brightness(1.1); }
+.mbars { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 9px; }
+.mbar { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+.mbl { color: var(--muted); width: 30px; flex: none; }
+.mbt { flex: 1; height: 7px; border-radius: 4px; background: var(--card-2); overflow: hidden; }
+.mbt > i { display: block; height: 100%; border-radius: 4px; transition: width .4s ease, background .3s; }
+.mbv { color: var(--text); font-variant-numeric: tabular-nums; width: 34px; text-align: right; flex: none; }
+@media (max-width: 440px) { .mbars { grid-template-columns: 1fr; } }
+
+/* Visão geral antiga (mantida p/ compatibilidade) */
+.overview-old {
   background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px;
   padding: 14px 16px; margin-bottom: 18px;
 }
@@ -142,6 +182,17 @@ body {
 .regime.r-parado { color: var(--muted); }
 .rico { font-size: 11px; }
 .ovrow.notrend { opacity: .6; }
+
+/* Checklist de segurança */
+.checklist { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--border); text-align: left; }
+.chk-head { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.chk { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; color: var(--text); }
+.chk .ck { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border-radius: 5px; font-size: 12px; font-weight: 800; }
+.chk.ok .ck { background: var(--buy-dim); color: var(--buy); }
+.chk.no .ck { background: var(--sell-dim); color: var(--sell); }
+.chk .cl { flex: 1; }
+.chk.no .cl { color: var(--muted); }
+.chk .cvv { color: var(--muted); font-variant-numeric: tabular-nums; }
 @keyframes entryPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } 50% { box-shadow: 0 0 0 3px rgba(255,255,255,.12); } }
 @media (prefers-reduced-motion: reduce) { .entry.go { animation: none; } }
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Sinalizador de Confluência</title>
-  <meta name="description" content="Análise técnica em tempo real com modelo top-down, plano de entrada (stop/alvo) e backtest real. Não é previsão garantida.">
+  <meta name="description" content="Lista de criptos em tempo real: operar ou não, compra ou venda agora, com checklist de condições. Apoio à decisão, não é previsão garantida.">
   <meta name="theme-color" content="#0b0f14">
   <meta name="color-scheme" content="dark">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,14 +18,8 @@
       <span class="dot"></span>
       <span>Sinalizador de <b>Confluência</b></span>
     </div>
-    <div class="controls">
-      <label class="sel">
-        <span>Cripto</span>
-        <select id="symbol" aria-label="Escolher cripto"></select>
-      </label>
-      <div class="status" id="status" title="Estado da conexão">
-        <span class="live-dot"></span><span id="status-text">conectando…</span>
-      </div>
+    <div class="status" id="status" title="Estado da conexão">
+      <span class="live-dot"></span><span id="status-text">conectando…</span>
     </div>
   </header>
 
@@ -34,71 +28,34 @@
     <a class="act broker" href="https://assettbroker.com/app/traderoom" target="_blank" rel="noopener noreferrer">Abrir corretora ↗</a>
   </div>
 
-  <!-- Visão geral: todas as criptos ordenadas por confluência e volatilidade -->
-  <section class="overview" id="overview">
+  <section class="market" id="market">
     <div class="ov-top">
-      <span class="ov-label">Mercado · por confluência e volatilidade</span>
+      <span class="ov-label">Mercado — operar ou não, agora</span>
       <div class="ovright">
+        <label class="paymini" title="Pagamento da corretora no ganho">
+          pgto <input type="number" id="payout" min="10" max="100" step="1" value="90" inputmode="numeric">%
+        </label>
         <span class="ovclock" data-ovclock title="Tempo até a vela fechar">—</span>
-        <div class="ovtf" id="ovtf" role="group" aria-label="Tempo gráfico do ranking">
+        <div class="ovtf" id="ovtf" role="group" aria-label="Tempo gráfico / expiração">
           <button type="button" data-tf="1m">1m</button>
           <button type="button" data-tf="5m" class="on">5m</button>
           <button type="button" data-tf="15m">15m</button>
         </div>
       </div>
     </div>
-    <div class="ovlist" id="ovlist"><div class="ovempty">carregando mercado…</div></div>
+    <div class="mlist" id="mlist"><div class="ovempty">carregando mercado…</div></div>
   </section>
-
-  <!-- Aviso grande: a hora certa de entrar -->
-  <section class="entry wait" id="entry">
-    <span class="entry-main" id="entry-main">AGUARDE</span>
-    <span class="entry-sub" id="entry-sub">escolha uma cripto e o tempo</span>
-  </section>
-
-  <!-- Detalhe da cripto selecionada: modelo top-down (15m manda, 5m confirma, 1m dispara) -->
-  <section class="topdown" id="topdown">
-    <div class="td-head">
-      <span class="ov-label"><b id="detail-sym">BTC</b> · direção (top-down)</span>
-      <span class="td-price" id="td-price">—</span>
-    </div>
-    <strong class="td-verdict wait" id="td-verdict">—</strong>
-    <p class="td-text" id="td-text">analisando os três tempos…</p>
-    <div class="binbar">
-      <label class="payout">
-        <span>Pagamento (payout)</span>
-        <span class="payin"><input type="number" id="payout" min="10" max="100" step="1" value="90" inputmode="numeric">%</span>
-      </label>
-      <div class="payout">
-        <span>Acerto p/ empatar</span>
-        <b id="breakeven">—</b>
-      </div>
-      <div class="payout reco">
-        <span>Recomendação</span>
-        <b id="reco">—</b>
-      </div>
-    </div>
-  </section>
-
-  <main class="cards" id="cards"><!-- cartões por timeframe --></main>
 
   <section class="bt-explain">
-    <h2>Como ler (opção binária)</h2>
+    <h2>Como ler a lista</h2>
     <p>
-      Em cada vela passada, o app recalcula o sinal usando <b>só o que era conhecido até ali</b>
-      e confere se, na <b>expiração</b> (1 vela do tempo), o preço fechou do lado do sinal. O
-      <b>acerto</b> é a taxa real de vitórias. Como a plataforma paga menos no ganho (ex.: 85%) do
-      que tira na perda (100%), você precisa acertar <b>mais que o equilíbrio</b> só pra empatar —
-      com 85%, isso é <b>54,1%</b>. Acerto perto de 50% (moeda jogada) <b>perde dinheiro</b>. Essa
-      diferença é a margem da casa, e é por isso que opção binária é restrita/proibida para o
-      varejo em muitos países. <b>Tempo da vela:</b> o sinal usa a vela em formação e <b>pode
-      mudar até ela fechar</b> — por isso cada cartão mostra quanto falta pro fechamento; muitos
-      preferem decidir perto do fim da vela, quando o sinal está mais firme.
-      <b>Condição do mercado:</b> ✅ <b>Com tendência</b> = o preço anda numa direção (mais hábil
-      a operar); 🌀 <b>Instável</b> = sobe e desce sem sair do lugar (picotado — você compra e
-      volta); 😴 <b>Parado</b> = quase sem movimento. Em 🌀 ou 😴 o app mostra <b>NÃO OPERAR</b>,
-      mesmo com confluência alta, porque são as condições onde mais se perde. Isso é gestão de
-      risco (evitar as piores horas), não garantia de acerto.
+      Cada cripto mostra a <b>ação do momento</b> no tempo escolhido: <b>⚡ COMPRA/VENDA AGORA</b>
+      (sinal firme e vela fechando), <b>COMPRA/VENDA</b> (direção definida, aguarde o fim da vela),
+      <b>AGUARDE</b> (indicadores sem acordo) ou <b>NÃO OPERAR</b> (mercado 🌀 instável ou 😴 parado).
+      As barrinhas são as condições a favor: <b>Conf</b> (confluência dos 4 indicadores), <b>Tend</b>
+      (mercado com direção, não picotado), <b>Vol</b> (volatilidade sob controle) e <b>Hist</b>
+      (acerto histórico vs. o equilíbrio). Quanto mais verdes, mais limpa a situação. É apoio à
+      decisão — <b>você</b> confere e decide. Não garante acerto.
     </p>
   </section>
 
@@ -106,14 +63,14 @@
     <h2>Leia antes de operar</h2>
     <p>
       Isto <b>não é previsão garantida</b> nem conselho financeiro. A ferramenta lê indicadores
-      técnicos reais sobre dados ao vivo e mostra a inclinação <b>atual</b> do mercado e a volatilidade.
-      O mercado pode virar e o sinal <b>pode errar</b>. Resultados passados do backtest
-      <b>não garantem</b> resultados futuros. Opere só com dinheiro que você pode perder.
+      técnicos reais sobre dados ao vivo. O mercado pode virar e o sinal <b>pode errar</b>. Em
+      opção binária, a margem da casa joga contra no longo prazo. Opere só com dinheiro que você
+      pode perder.
     </p>
   </section>
 
   <footer class="foot">
-    Dados ao vivo: Binance / OKX / Coinbase (públicos) · Acerto medido vs. pagamento · Cálculo 100% no seu navegador
+    Dados ao vivo: Binance / OKX / Coinbase (públicos) · Cálculo 100% no seu navegador
   </footer>
 
   <script type="module" src="assets/js/app.js"></script>

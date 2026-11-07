@@ -57,13 +57,17 @@ export async function fetchCandles(symbol, interval, limit = 150) {
   throw lastErr || new Error("Nenhuma fonte de dados disponível");
 }
 
+// Pares disponíveis na corretora (Assett). Todos verificados na Binance.
 export const SYMBOLS = [
   { v: "BTCUSDT", label: "BTC" },
-  { v: "ETHUSDT", label: "ETH" },
-  { v: "SOLUSDT", label: "SOL" },
+  { v: "ZECUSDT", label: "ZEC" },
   { v: "BNBUSDT", label: "BNB" },
-  { v: "XRPUSDT", label: "XRP" },
   { v: "DOGEUSDT", label: "DOGE" },
-  { v: "ADAUSDT", label: "ADA" },
-  { v: "AVAXUSDT", label: "AVAX" },
+  { v: "ETCUSDT", label: "ETC" },
+  { v: "NEARUSDT", label: "NEAR" },
+  { v: "SUIUSDT", label: "SUI" },
+  { v: "UNIUSDT", label: "UNI" },
+  { v: "SOLUSDT", label: "SOL" },
+  { v: "XRPUSDT", label: "XRP" },
+  { v: "ARBUSDT", label: "ARB" },
 ];
