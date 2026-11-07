@@ -386,6 +386,30 @@ body {
 .chart-foot { padding: 9px 14px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--border); }
 @media (max-width: 480px) { .chart-area { height: 300px; } .chart-box { max-width: 100%; } }
 
+/* Histórico (modal) */
+.hist-modal { position: fixed; inset: 0; z-index: 55; background: rgba(5,8,12,.8); display: grid; place-items: center; padding: 16px; }
+.hist-modal[hidden] { display: none; }
+.hist-box { width: 100%; max-width: 640px; max-height: 85vh; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.hist-title { font-weight: 800; font-size: 16px; flex: 1; }
+.hist-list { flex: 1; overflow-y: auto; padding: 8px 10px; }
+.hrow { display: grid; grid-template-columns: auto 52px 1fr auto auto; gap: 8px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.hrow:last-child { border-bottom: 0; }
+.htime { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.hsym { font-weight: 700; }
+.hdir { font-weight: 700; font-size: 11.5px; }
+.hdir.buy { color: var(--buy); } .hdir.sell { color: var(--sell); }
+.htf { color: var(--muted); font-size: 11px; }
+.hres { font-weight: 800; font-size: 11.5px; }
+.hres.green { color: var(--buy); } .hres.loss { color: var(--sell); }
+.hcond { color: var(--muted); font-size: 11px; text-align: right; }
+.hist-stats { border-top: 1px solid var(--border); padding: 12px 14px; background: var(--bg-2); font-size: 12.5px; line-height: 1.5; }
+.hstat-main { font-size: 14px; margin-bottom: 6px; }
+.hstat-main b { color: var(--text); }
+.hstat-row { color: var(--muted); margin-top: 4px; }
+.hstat-row b { color: var(--text); }
+.hchip { display: inline-block; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; margin: 2px 3px 0 0; font-size: 11.5px; color: var(--text); }
+.hstat-src { margin-top: 8px; font-size: 11px; color: var(--muted); }
+
 /* Disclaimer + footer */
 .disclaimer {
   margin-top: 24px; background: var(--wait-dim); border: 1px solid rgba(199,169,58,.35);

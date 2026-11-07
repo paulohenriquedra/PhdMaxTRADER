@@ -20,8 +20,27 @@ let pending = [];               // operações aguardando resultado
 let streak = 0;                 // perdas seguidas
 let pauseStreak = +localStorage.getItem("sc_pausestreak") || 2;
 let paused = false;             // pausa temporária após sequência de perdas
+let history = loadHistory();    // histórico de operações (p/ estudar)
+
+function loadHistory() { try { return JSON.parse(localStorage.getItem("sc_history") || "[]"); } catch (_) { return []; } }
+function saveHistory() { try { history = history.slice(-300); localStorage.setItem("sc_history", JSON.stringify(history)); } catch (_) {} }
 const LOW_VOL = 35;
 const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 };
+// Banco de dados (Supabase) — a chave 'anon' é pública por design; o acesso é
+// controlado por RLS no servidor. Só a tabela 'operacoes' é liberada.
+const SB_URL = "https://mgvbhrfdmfxxdesayhvs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ndmJocmZkbWZ4eGRlc2F5aHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDkxNzUsImV4cCI6MjEwODk4NTE3NX0.G8-K4bjbMBTUHssFOmm26eMIlaRv_Qyay2dKSR83260";
+let sb = null;
+function getSB() {
+  if (sb) return sb;
+  try { if (window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SB_URL, SB_KEY); } catch (_) {}
+  return sb;
+}
+const deviceId = (() => {
+  let d = localStorage.getItem("sc_device");
+  if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem("sc_device", d); }
+  return d;
+})();
 const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
 
 const $ = (s) => document.querySelector(s);
@@ -138,7 +157,8 @@ function registerTrade(sym) {
     flashToast(`${SYMBOL_LABEL[sym]} já aceita para essa vela`);
     return;
   }
-  pending.push({ sym, dir: a.verdict, open, at: open + dur, tf: ovTf });
+  const votes = a.votes ? a.votes.map((v) => `${v.nome}=${v.dir}`).join("|") : "";
+  pending.push({ sym, dir: a.verdict, open, at: open + dur, tf: ovTf, snap: { conf: a.confluence, regime: a.regime, risk: a.risk, votes } });
   const quando = into <= 3000 ? "vale pra ESTA vela" : "vale pra PRÓXIMA vela — entre na virada";
   flashToast(`Aceito: ${SYMBOL_LABEL[sym]} ${a.verdict} · ${quando}`);
 }
@@ -150,6 +170,7 @@ function recordOutcome(sym, win) {
   fireNotif(`${SYMBOL_LABEL[sym] || sym}: ${win ? "GREEN ✓" : "LOSS ✗"}`, win ? "Operação registrada." : "Faz parte. Respeite seu limite.", sym);
   if (!win && streak >= pauseStreak) enterPause();
   renderDay();
+  const hm = $("#histModal"); if (hm && !hm.hidden) renderHist();
 }
 function resolvePending() {
   const now = Date.now();
@@ -167,6 +188,19 @@ function resolvePending() {
     // Resultado = direção da própria vela operada (abertura → fechamento).
     const win = p.dir === VERDICT.BUY ? cndl.c > cndl.o : cndl.c < cndl.o;
     pending.splice(i, 1);
+    const s = p.snap || {};
+    const result = win ? "green" : "loss";
+    history.push({ t: p.open, sym: p.sym, dir: p.dir, tf: p.tf, result, conf: s.conf, regime: s.regime, risk: s.risk, votes: s.votes });
+    saveHistory();
+    const client = getSB();
+    if (client) {
+      client.from("operacoes").insert({
+        vela_em: new Date(p.open).toISOString(),
+        cripto: p.sym, direcao: p.dir, tempo: p.tf, resultado: result,
+        confluencia: s.conf ?? null, regime: s.regime ?? null, volatilidade: s.risk ?? null,
+        votos: s.votes ?? null, device: deviceId,
+      }).then(() => {}, () => {});
+    }
     recordOutcome(p.sym, win);
     changed = true;
   }
@@ -179,6 +213,76 @@ function enterPause() {
   fireNotif("⏸️ Pausa recomendada", `${streak} perdas seguidas. Pare um pouco antes de voltar.`, null);
 }
 function resumeTrading() { paused = false; streak = 0; renderDay(); renderList(); }
+
+// ---- Histórico de operações (para estudar) ----
+function wrLabel(arr) {
+  const t = arr.length, w = arr.filter((x) => x.result === "green").length;
+  return t ? `${((w / t) * 100).toFixed(0)}% (${w}/${t})` : "—";
+}
+function renderHistRows(rows, fonte) {
+  const list = $("#histList"), stats = $("#histStats");
+  if (!list || !stats) return;
+  if (!rows.length) { stats.innerHTML = ""; list.innerHTML = `<div class="ovempty">Nenhuma operação registrada ainda.</div>`; return; }
+  const h = rows;
+  const bySym = {}; h.forEach((x) => { (bySym[x.sym] = bySym[x.sym] || []).push(x); });
+  const symLines = Object.entries(bySym).sort((a, b) => b[1].length - a[1].length)
+    .map(([s, a]) => `<span class="hchip">${s}: ${wrLabel(a)}</span>`).join("");
+  const tend = h.filter((x) => x.regime === "tendencia");
+  const notend = h.filter((x) => x.regime && x.regime !== "tendencia");
+  const c100 = h.filter((x) => x.conf >= 100), c75 = h.filter((x) => x.conf < 100);
+  // lista (mais recentes primeiro)
+  list.innerHTML = h.slice().sort((a, b) => b.t - a.t).map((x) => {
+    const d = new Date(x.t);
+    const hh = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const dd = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    return `<div class="hrow"><span class="htime">${dd} ${hh}</span><span class="hsym">${x.sym}</span>` +
+      `<span class="hdir ${x.dir === "COMPRA" ? "buy" : "sell"}">${x.dir}</span><span class="htf">${x.tf}</span>` +
+      `<span class="hres ${x.result}">${x.result === "green" ? "GREEN" : "LOSS"}</span>` +
+      `<span class="hcond">${x.conf ?? "?"}% ${regIcon(x.regime)}</span></div>`;
+  }).join("");
+  // RESULTADOS (abaixo da lista)
+  stats.innerHTML =
+    `<div class="hstat-main">Resultado geral: <b>${wrLabel(h)}</b></div>` +
+    `<div class="hstat-row"><b>Por cripto:</b> ${symLines}</div>` +
+    `<div class="hstat-row"><b>Condição:</b> <span class="hchip">✅ tendência: ${wrLabel(tend)}</span> <span class="hchip">🌀😴 instável/parado: ${wrLabel(notend)}</span></div>` +
+    `<div class="hstat-row"><b>Confluência:</b> <span class="hchip">4/4: ${wrLabel(c100)}</span> <span class="hchip">3/4: ${wrLabel(c75)}</span></div>` +
+    `<div class="hstat-src">${fonte}</div>`;
+}
+async function renderHist() {
+  const list = $("#histList");
+  if (list) list.innerHTML = `<div class="ovempty">carregando…</div>`;
+  const client = getSB();
+  if (client) {
+    try {
+      const { data, error } = await client.from("operacoes").select("*").order("criado_em", { ascending: false }).limit(300);
+      if (!error && data) {
+        const rows = data.map((r) => ({
+          t: (r.vela_em ? new Date(r.vela_em) : new Date(r.criado_em)).getTime(),
+          sym: r.cripto, dir: r.direcao, tf: r.tempo, result: r.resultado,
+          conf: r.confluencia, regime: r.regime, risk: r.volatilidade, votes: r.votos,
+        }));
+        renderHistRows(rows, "☁️ banco de dados (Supabase)");
+        return;
+      }
+    } catch (_) {}
+  }
+  renderHistRows(history.slice(), "📱 salvo neste aparelho (banco offline)");
+}
+function openHist() { const m = $("#histModal"); if (m) { m.hidden = false; renderHist(); } }
+function closeHist() { const m = $("#histModal"); if (m) m.hidden = true; }
+async function clearHist() {
+  if (!confirm("Apagar todo o histórico de operações?")) return;
+  history = []; saveHistory();
+  const client = getSB();
+  if (client) { try { await client.from("operacoes").delete().neq("id", 0); } catch (_) {} }
+  renderHist();
+}
+function bindHist() {
+  $("#histOpen")?.addEventListener("click", openHist);
+  $("#hist-close")?.addEventListener("click", closeHist);
+  $("#histModal")?.addEventListener("click", (e) => { if (e.target.id === "histModal") closeHist(); });
+  $("#histClear")?.addEventListener("click", clearHist);
+}
 
 // ---- Notificação 30s antes da virada da vela ----
 function checkLeadNotification() {
@@ -518,6 +622,7 @@ function start() {
   bindAlerts();
   bindChart();
   bindDay();
+  bindHist();
   registerSW();
   refresh();
   tickClocks();

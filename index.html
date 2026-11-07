@@ -34,6 +34,7 @@
       <button type="button" id="dayWin" class="dbtn win">✓ Ganhei</button>
       <button type="button" id="dayLoss" class="dbtn loss">✗ Perdi</button>
       <button type="button" id="dayReset" class="dbtn" title="Zerar o dia">↺</button>
+      <button type="button" id="histOpen" class="dbtn" title="Histórico de operações">📒</button>
     </div>
     <label class="day-lim">parar com <input type="number" id="dayLimit" min="1" max="30" value="3" inputmode="numeric"> no dia</label>
     <label class="day-lim">pausar com <input type="number" id="pauseStreak" min="1" max="10" value="2" inputmode="numeric"> seguidas</label>
@@ -104,7 +105,21 @@
     </div>
   </div>
 
+  <!-- Histórico de operações (banco de dados) -->
+  <div class="hist-modal" id="histModal" hidden>
+    <div class="hist-box">
+      <div class="chart-head">
+        <span class="hist-title">📒 Histórico de operações</span>
+        <button type="button" class="dbtn" id="histClear">Limpar</button>
+        <button type="button" id="hist-close" aria-label="Fechar">✕</button>
+      </div>
+      <div class="hist-list" id="histList"></div>
+      <div class="hist-stats" id="histStats"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>
