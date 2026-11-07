@@ -11,7 +11,8 @@ const REFRESH_MS = 10000;       // re-busca os dados
 const BT_EVERY_MS = 60000;      // recalcula o histórico no máx. a cada 60s
 const BT_DEPTH = 300;
 const NOTIF_THROTTLE = 5 * 60 * 1000;
-const ENTRY_WINDOW_S = 8;       // "AGORA" nos últimos N segundos da vela
+const ENTRY_LEAD_S = 30;        // avisa "PREPARAR" com N segundos de antecedência
+let armedDir = {};              // direção travada perto da virada, por cripto
 const LOW_VOL = 35;
 const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 };
 const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
@@ -36,16 +37,29 @@ function fmtCountdown(ms) {
 const scoreColor = (s) => (s >= 70 ? "var(--buy)" : s >= 40 ? "var(--risk-mid)" : "var(--sell)");
 
 // ---- Ação e pontuações de cada cripto ----
-function rowAction(a, remMs) {
-  if (!a || !a.ok) return { key: 0, txt: "…", cls: "wait", hot: false };
-  if (a.regime !== "tendencia") {
-    return { key: 1, txt: `NÃO OPERAR ${regIcon(a.regime)}`, cls: "no", hot: false };
+// remMs = quanto falta pra vela fechar; dur = duração da vela.
+// O clique certo é NA VIRADA da vela (contador em 0), pra operar a próxima.
+function rowAction(a, sym, remMs, dur) {
+  if (!a || !a.ok) { armedDir[sym] = null; return { key: 0, txt: "…", cls: "wait", hot: false }; }
+  if (a.regime !== "tendencia") { armedDir[sym] = null; return { key: 1, txt: `NÃO OPERAR ${regIcon(a.regime)}`, cls: "no", hot: false }; }
+  if (a.verdict === VERDICT.WAIT) { armedDir[sym] = null; return { key: 2, txt: "AGUARDE", cls: "wait", hot: false }; }
+  const dir = a.verdict, cls = dir === VERDICT.BUY ? "buy" : "sell";
+  const strong = a.confluence >= 75;
+
+  // Trava a direção nos segundos finais (pra não mudar bem na hora do clique).
+  if (remMs <= 12000 && strong) armedDir[sym] = dir;
+  // Zona de clique: últimos 5s da vela atual OU primeiros 3s da próxima (a virada).
+  const clickZone = remMs <= 5000 || remMs >= dur - 3000;
+  if (clickZone && armedDir[sym]) {
+    const d = armedDir[sym], c = d === VERDICT.BUY ? "buy" : "sell";
+    return { key: 5, txt: `⚡ CLIQUE ${d}`, cls: c, hot: true, dir: d };
   }
-  if (a.verdict === VERDICT.WAIT) return { key: 2, txt: "AGUARDE", cls: "wait", hot: false };
-  const dir = a.verdict; // COMPRA / VENDA
-  const hot = remMs <= ENTRY_WINDOW_S * 1000;
-  const cls = dir === VERDICT.BUY ? "buy" : "sell";
-  return { key: hot ? 4 : 3, txt: hot ? `⚡ ${dir} AGORA` : dir, cls, hot, dir };
+  // Longe da virada: libera a trava.
+  if (remMs < dur - 3000 && remMs > 12000) armedDir[sym] = null;
+
+  if (!strong) return { key: 2, txt: "AGUARDE", cls: "wait", hot: false };
+  if (remMs <= ENTRY_LEAD_S * 1000) return { key: 4, txt: `PREPARAR ${dir} · ${fmtCountdown(remMs)}`, cls, hot: false, dir };
+  return { key: 3, txt: dir, cls, hot: false, dir };
 }
 
 function scores(a) {
@@ -73,12 +87,13 @@ function renderList() {
   const box = $("#mlist");
   if (!box) return;
   const now = Date.now();
-  const rem = (DUR[ovTf] || 300000) - (now % (DUR[ovTf] || 300000));
+  const dur = DUR[ovTf] || 300000;
+  const rem = dur - (now % dur);
   const remTxt = fmtCountdown(rem);
 
   const rows = SYMBOLS.map((s) => {
     const a = aCache[s.v];
-    return { v: s.v, label: s.label, a, act: rowAction(a, rem) };
+    return { v: s.v, label: s.label, a, act: rowAction(a, s.v, rem, dur) };
   }).filter((r) => r.a && r.a.ok);
 
   if (!rows.length) { box.innerHTML = `<div class="ovempty">carregando mercado…</div>`; return; }

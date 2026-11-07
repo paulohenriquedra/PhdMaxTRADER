@@ -78,6 +78,8 @@ body {
   width: 46px; background: var(--bg); color: var(--text); border: 1px solid var(--border);
   border-radius: 7px; padding: 3px 6px; font-size: 13px; font-weight: 700; text-align: right;
 }
+.howto { margin: 2px 0 12px; font-size: 12.5px; line-height: 1.5; color: #c6cfdb; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.howto b { color: #fff; }
 .mlist { display: flex; flex-direction: column; gap: 8px; }
 .mrow {
   background: var(--card); border: 1px solid var(--border); border-radius: 12px;
