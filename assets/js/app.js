@@ -96,12 +96,17 @@ function renderCard(tf, r, bt) {
   const btEl = card.querySelector("[data-bt]");
   if (bt) {
     const ev = evalPayout(bt.winRate, bt.n, payout / 100);
-    const acima = ev.edge === "acima do equilíbrio";
-    const cor = acima ? "var(--buy)" : ev.edge === "poucos dados" ? "var(--muted)" : "var(--sell)";
+    const margem = (bt.winRate - ev.breakeven) * 100; // acerto − equilíbrio, em pontos %
+    const poucos = bt.n < 25;
+    const cor = poucos ? "var(--muted)" : margem >= 1.5 ? "var(--buy)" : margem <= -1.5 ? "var(--sell)" : "var(--muted)";
+    const sinal = margem >= 0 ? "+" : "−";
+    const margLabel = poucos
+      ? `<span class="bt-sub">amostra pequena</span>`
+      : `margem <b style="color:${cor}">${sinal}${Math.abs(margem).toFixed(0)}%</b>`;
     btEl.innerHTML =
       `expiração ${tf}: <b>${(bt.winRate * 100).toFixed(0)}%</b> de acerto · ` +
       `precisa ${(ev.breakeven * 100).toFixed(0)}% · ` +
-      `<b style="color:${cor}">${ev.edge}</b> <span class="bt-sub">(${bt.n} ops)</span>`;
+      `${margLabel} <span class="bt-sub">(${bt.n} ops)</span>`;
   } else {
     btEl.textContent = "histórico: calculando…";
   }
