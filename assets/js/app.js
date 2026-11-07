@@ -123,15 +123,24 @@ function flashToast(msg, good) {
   clearTimeout(flashToast._t);
   flashToast._t = setTimeout(() => { t.className = "toast"; }, 3800);
 }
-// Ao clicar em Operar: registra a operação (direção do sinal, preço e a vela de resultado).
+// Clicar em Operar = você ACEITA o sinal. A entrada real é na virada da vela.
+// Então o resultado é medido pela própria vela que você vai operar:
+// - aceitou no ⚡ CLIQUE (logo após a virada): vale pra vela atual;
+// - aceitou antes (PREPARAR/direção): vale pra PRÓXIMA vela (a da virada).
 function registerTrade(sym) {
   if (paused || dayLocked) return;
   const a = aCache[sym];
   if (!a || !a.ok || (a.verdict !== VERDICT.BUY && a.verdict !== VERDICT.SELL)) return;
   const dur = DUR[ovTf] || 300000, now = Date.now();
-  const open = Math.round(now / dur) * dur; // vela que a operação cobre
-  pending.push({ sym, dir: a.verdict, entry: a.price, open, at: open + dur, tf: ovTf });
-  flashToast(`Registrado: ${SYMBOL_LABEL[sym]} ${a.verdict} · aguardando resultado`);
+  const into = now % dur;
+  const open = into <= 3000 ? now - into : now - into + dur; // vela operada (abre em 'open')
+  if (pending.some((p) => p.sym === sym && p.open === open)) {
+    flashToast(`${SYMBOL_LABEL[sym]} já aceita para essa vela`);
+    return;
+  }
+  pending.push({ sym, dir: a.verdict, open, at: open + dur, tf: ovTf });
+  const quando = into <= 3000 ? "vale pra ESTA vela" : "vale pra PRÓXIMA vela — entre na virada";
+  flashToast(`Aceito: ${SYMBOL_LABEL[sym]} ${a.verdict} · ${quando}`);
 }
 function recordOutcome(sym, win) {
   if (win) { day.wins++; streak = 0; }
@@ -155,7 +164,8 @@ function resolvePending() {
       if (now > p.at + dur * 3) pending.splice(i, 1); // velho demais: descarta
       continue;
     }
-    const win = p.dir === VERDICT.BUY ? cndl.c > p.entry : cndl.c < p.entry;
+    // Resultado = direção da própria vela operada (abertura → fechamento).
+    const win = p.dir === VERDICT.BUY ? cndl.c > cndl.o : cndl.c < cndl.o;
     pending.splice(i, 1);
     recordOutcome(p.sym, win);
     changed = true;
