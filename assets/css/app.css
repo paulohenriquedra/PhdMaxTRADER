@@ -106,11 +106,34 @@ body {
 .clk { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
 .clk.soon { color: var(--sell); font-weight: 700; }
 @media (max-width: 480px) {
+  .ov-top { flex-direction: column; align-items: stretch; gap: 8px; }
+  .ovright { justify-content: space-between; }
   .ovrow { grid-template-columns: 1fr auto; row-gap: 4px; column-gap: 8px; padding: 9px 11px; }
   .ovdir { grid-column: 2; grid-row: 1; }
   .ovm:nth-of-type(3) { grid-column: 1; grid-row: 2; }
   .ovm:nth-of-type(4) { grid-column: 2; grid-row: 2; text-align: right; }
 }
+
+/* Aviso de entrada (a hora certa) */
+.entry {
+  border-radius: 16px; padding: 16px 18px; margin-bottom: 16px; text-align: center;
+  border: 1px solid var(--border); background: var(--bg-2);
+}
+.entry-main { display: block; font-size: 24px; font-weight: 800; letter-spacing: .01em; }
+.entry-sub { display: block; font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.entry.wait .entry-main { color: var(--muted); }
+.entry.ready.buy { border-color: rgba(22,199,132,.5); }
+.entry.ready.sell { border-color: rgba(234,57,67,.5); }
+.entry.ready.buy .entry-main { color: var(--buy); }
+.entry.ready.sell .entry-main { color: var(--sell); }
+.entry.go { animation: entryPulse 1s ease-in-out infinite; }
+.entry.go.buy { background: var(--buy-dim); border-color: var(--buy); }
+.entry.go.sell { background: var(--sell-dim); border-color: var(--sell); }
+.entry.go.buy .entry-main { color: var(--buy); }
+.entry.go.sell .entry-main { color: var(--sell); }
+.entry.go .entry-main { font-size: 28px; }
+@keyframes entryPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } 50% { box-shadow: 0 0 0 3px rgba(255,255,255,.12); } }
+@media (prefers-reduced-motion: reduce) { .entry.go { animation: none; } }
 
 /* Top-down banner */
 .ov-label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }

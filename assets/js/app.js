@@ -24,6 +24,10 @@ let lastDirByTf = {}; // direção atual por tf, para a recomendação
 let prevConf = {};    // confluência anterior por cripto (p/ detectar 100%)
 let lastNotifAt = {}; // última notificação por cripto
 let swReg = null;
+const ENTRY_WINDOW_S = 8; // "entrar agora" nos últimos N segundos da vela
+let lastDetail = null;    // { byTf, price } do detalhe atual
+let liveCandles = {};     // { tf: candles[] } da cripto do detalhe (tempo real)
+let ws = null, wsSymbol = null, wsRenderPending = false, wsFails = 0;
 
 function clampPayout(v) { return Math.max(10, Math.min(100, v || 85)); }
 
@@ -52,6 +56,8 @@ function selectSymbol(sym, scroll = false) {
   if (sel) sel.value = symbol;
   btCache = {};
   lastBtAt = 0;
+  liveCandles = {};
+  lastDetail = null;
   buildCards();
   run(true);
   if (scroll) $("#topdown")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -200,6 +206,68 @@ function scheduleBacktest(results, byTf, price) {
   }, 0);
 }
 
+// Recalcula e redesenha o detalhe a partir das velas em memória (tempo real).
+function renderDetailFromLive(realtime) {
+  const byTf = {};
+  let price = null;
+  for (const tf of TIMEFRAMES) {
+    const arr = liveCandles[tf];
+    if (!arr || !arr.length) continue;
+    const r = analyze(arr);
+    byTf[tf] = r;
+    lastDirByTf[tf] = r.ok ? r.verdict : VERDICT.WAIT;
+    if (r.ok) price = r.price;
+    renderCard(tf, r, btCache[tf]);
+  }
+  lastDetail = { byTf, price };
+  renderTopDown(price, topDown(byTf["15m"], byTf["5m"], byTf["1m"]));
+  tickEntry();
+  if (realtime) setStatus("live", `tempo real · ${new Date().toLocaleTimeString("pt-BR")}`);
+}
+
+// ---- WebSocket (tempo real) da cripto do detalhe. Falha em silêncio; o
+// polling de REFRESH_MS continua como rede de segurança. ----
+function closeWS() {
+  if (ws) { try { ws.onclose = null; ws.close(); } catch (_) {} ws = null; }
+}
+function connectWS(sym) {
+  if (typeof WebSocket === "undefined") return;
+  closeWS();
+  wsSymbol = sym;
+  const streams = TIMEFRAMES.map((tf) => sym.toLowerCase() + "@kline_" + tf).join("/");
+  let sock;
+  try { sock = new WebSocket("wss://stream.binance.com:9443/stream?streams=" + streams); }
+  catch (_) { return; }
+  ws = sock;
+  sock.onopen = () => { wsFails = 0; };
+  sock.onmessage = (ev) => {
+    try {
+      const k = JSON.parse(ev.data).data.k;
+      const arr = liveCandles[k.i];
+      if (!arr || !arr.length) return;
+      const c = { t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v };
+      const last = arr[arr.length - 1];
+      if (c.t === last.t) arr[arr.length - 1] = c;
+      else if (c.t > last.t) { arr.push(c); if (arr.length > BT_DEPTH) arr.shift(); }
+      else return;
+      scheduleWsRender();
+    } catch (_) {}
+  };
+  sock.onerror = () => { try { sock.close(); } catch (_) {} };
+  sock.onclose = () => {
+    if (wsSymbol !== sym) return;
+    wsFails++;
+    // Desiste do tempo real após algumas falhas (ex.: rede bloqueia WS);
+    // o polling de REFRESH_MS continua mantendo tudo atualizado.
+    if (wsFails <= 3) setTimeout(() => { if (wsSymbol === sym) connectWS(sym); }, 3000);
+  };
+}
+function scheduleWsRender() {
+  if (wsRenderPending) return;
+  wsRenderPending = true;
+  setTimeout(() => { wsRenderPending = false; try { renderDetailFromLive(true); } catch (_) {} }, 250);
+}
+
 async function run(reset = false) {
   if (reset) {
     renderTopDown(null, { verdict: VERDICT.WAIT, texto: "carregando…" });
@@ -219,14 +287,20 @@ async function run(reset = false) {
     let price = null;
     // Render AO VIVO imediato (não espera o backtest).
     for (const [tf, candles] of results) {
+      liveCandles[tf] = candles; // semeia o tempo real
       const r = analyze(candles);
       byTf[tf] = r;
       lastDirByTf[tf] = r.ok ? r.verdict : VERDICT.WAIT;
       if (r.ok) price = r.price;
       renderCard(tf, r, btCache[tf]);
     }
+    lastDetail = { byTf, price };
     renderTopDown(price, topDown(byTf["15m"], byTf["5m"], byTf["1m"]));
+    tickEntry();
     setStatus("live", `${source || "ao vivo"} · ${new Date().toLocaleTimeString("pt-BR")}`);
+
+    // Conecta o tempo real (se ainda não for desta cripto).
+    if (wsSymbol !== symbol) { wsFails = 0; connectWS(symbol); }
 
     // Histórico depois, em segundo plano.
     scheduleBacktest(results, byTf, price);
@@ -395,6 +469,42 @@ function tickClocks() {
     ov.textContent = "vela fecha em " + fmtCountdown(rem);
     ov.classList.toggle("soon", rem <= 10000);
   }
+  tickEntry();
+}
+
+// Aviso grande da hora certa de entrar, para o tempo escolhido (ovTf).
+function tickEntry() {
+  const el = $("#entry");
+  if (!el) return;
+  const main = $("#entry-main");
+  const sub = $("#entry-sub");
+  const dur = DUR[ovTf] || 300000;
+  const rem = dur - (Date.now() % dur);
+  const remTxt = fmtCountdown(rem);
+  const r = lastDetail && lastDetail.byTf ? lastDetail.byTf[ovTf] : null;
+  const lbl = SYMBOL_LABEL[symbol] || symbol;
+
+  if (!r || !r.ok) {
+    el.className = "entry wait";
+    main.textContent = "AGUARDE";
+    sub.textContent = `carregando ${lbl}…`;
+    return;
+  }
+  const strong = r.confluence >= 75 && r.verdict !== VERDICT.WAIT;
+  const cls = r.verdict === VERDICT.BUY ? "buy" : r.verdict === VERDICT.SELL ? "sell" : "wait";
+  if (!strong) {
+    el.className = "entry wait";
+    main.textContent = "AGUARDE";
+    sub.textContent = `${lbl} · ${ovTf} · sinal fraco — vela fecha em ${remTxt}`;
+  } else if (rem <= ENTRY_WINDOW_S * 1000) {
+    el.className = "entry go " + cls;
+    main.textContent = `⚡ ENTRAR AGORA · ${r.verdict}`;
+    sub.textContent = `${lbl} · ${ovTf} · confluência ${r.confluence}% · fecha em ${remTxt}`;
+  } else {
+    el.className = "entry ready " + cls;
+    main.textContent = `PREPARAR · ${r.verdict}`;
+    sub.textContent = `${lbl} · ${ovTf} · entre faltando ${ENTRY_WINDOW_S}s — fecha em ${remTxt}`;
+  }
 }
 
 function start() {
@@ -413,7 +523,7 @@ function start() {
   clearInterval(ovTimer); ovTimer = setInterval(runOverview, OV_REFRESH_MS);
   setInterval(tickClocks, 1000);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { clearInterval(timer); clearInterval(ovTimer); }
+    if (document.hidden) { clearInterval(timer); clearInterval(ovTimer); closeWS(); wsSymbol = null; }
     else {
       run(); runOverview();
       timer = setInterval(run, REFRESH_MS);
