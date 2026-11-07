@@ -218,16 +218,13 @@ async function run(reset = false) {
 }
 
 function bindPayout() {
-  const inp = $("#payout");
-  inp.value = payout;
-  inp.addEventListener("change", () => {
-    payout = clampPayout(+inp.value);
-    inp.value = payout;
+  const sel = $("#payout");
+  sel.value = String(payout);
+  if (!sel.value) { sel.value = "90"; payout = 90; } // valor salvo fora da lista
+  sel.addEventListener("change", () => {
+    payout = clampPayout(+sel.value);
     localStorage.setItem("sc_payout", payout);
     run(); // acerto não muda com o payout; só a avaliação/recomendação
-  });
-  inp.addEventListener("input", () => {
-    $("#breakeven").textContent = (100 / (1 + clampPayout(+inp.value) / 100)).toFixed(1) + "%";
   });
 }
 

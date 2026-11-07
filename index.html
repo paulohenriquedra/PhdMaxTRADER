@@ -40,7 +40,14 @@
     <div class="binbar">
       <label class="payout">
         <span>Pagamento (payout)</span>
-        <span class="payin"><input type="number" id="payout" min="10" max="100" step="1" value="85" inputmode="numeric">%</span>
+        <select id="payout" aria-label="Pagamento">
+          <option value="70">70%</option>
+          <option value="75">75%</option>
+          <option value="80">80%</option>
+          <option value="85">85%</option>
+          <option value="90" selected>90%</option>
+          <option value="95">95%</option>
+        </select>
       </label>
       <div class="payout">
         <span>Acerto p/ empatar</span>

@@ -74,10 +74,9 @@ body {
 }
 .payout > span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
 .payout b { font-size: 16px; font-variant-numeric: tabular-nums; }
-.payin { display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 700; color: var(--text); }
-.payin input {
-  width: 58px; background: var(--bg); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: 4px 8px; font-size: 16px; font-weight: 700; text-align: right;
+.payout select {
+  background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font-size: 16px; font-weight: 700; cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
 .payout.reco b { font-size: 14px; line-height: 1.35; display: block; }
