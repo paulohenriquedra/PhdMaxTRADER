@@ -54,7 +54,7 @@ function buildCards() {
         <div class="bar conf"><span class="wait" data-conf-bar></span></div>
       </div>
       <div class="bar-block">
-        <div class="bar-head"><span class="name">Risco</span><span class="val" data-risk-val>—</span></div>
+        <div class="bar-head"><span class="name">Volatilidade</span><span class="val" data-risk-val>—</span></div>
         <div class="bar"><span data-risk-bar></span></div>
         <div class="risk-label" data-risk-label></div>
       </div>
