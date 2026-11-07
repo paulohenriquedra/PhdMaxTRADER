@@ -53,6 +53,58 @@ body {
 .status.err .live-dot { background: var(--sell); }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 
+/* Botões de ação (alertas + corretora) */
+.actions { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.act {
+  flex: 1 1 auto; min-width: 140px; text-align: center; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text); text-decoration: none;
+  transition: border-color .2s, background .2s;
+}
+.act:hover { border-color: var(--accent); }
+.act.on { border-color: var(--buy); color: var(--buy); background: var(--buy-dim); }
+.act.broker { background: var(--accent); border-color: var(--accent); color: #fff; }
+.act.broker:hover { filter: brightness(1.08); }
+.act:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Visão geral (ranking de criptos) */
+.overview {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 18px;
+}
+.ov-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ovtf { display: inline-flex; gap: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+.ovtf button {
+  font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted);
+  background: transparent; border: 0; border-radius: 7px; padding: 5px 10px; cursor: pointer;
+}
+.ovtf button.on { background: var(--accent); color: #fff; }
+.ovlist { display: flex; flex-direction: column; gap: 6px; }
+.ovempty { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+.ovrow {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center;
+  width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; color: var(--text); transition: border-color .15s, background .15s;
+}
+.ovrow:hover { border-color: var(--accent); }
+.ovrow.sel { border-color: var(--accent); background: #16202e; }
+.ovrow.hot { border-color: var(--buy); box-shadow: 0 0 0 1px var(--buy) inset; }
+.ovsym { font-weight: 700; font-size: 15px; }
+.ovdir { font-weight: 700; font-size: 13px; }
+.ovdir.buy { color: var(--buy); }
+.ovdir.sell { color: var(--sell); }
+.ovdir.wait { color: var(--wait); }
+.ovm { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ovm b { color: var(--text); }
+@media (max-width: 480px) {
+  .ovrow { grid-template-columns: 1fr auto; row-gap: 4px; column-gap: 8px; padding: 9px 11px; }
+  .ovdir { grid-column: 2; grid-row: 1; }
+  .ovm:nth-of-type(3) { grid-column: 1; grid-row: 2; }
+  .ovm:nth-of-type(4) { grid-column: 2; grid-row: 2; text-align: right; }
+}
+
 /* Top-down banner */
 .ov-label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
 .topdown {

@@ -29,10 +29,28 @@
     </div>
   </header>
 
-  <!-- Veredito principal: modelo top-down (15m manda, 5m confirma, 1m dispara) -->
+  <div class="actions">
+    <button id="alerts" class="act" type="button">🔔 Ativar alertas</button>
+    <a class="act broker" href="https://assettbroker.com/app/traderoom" target="_blank" rel="noopener noreferrer">Abrir corretora ↗</a>
+  </div>
+
+  <!-- Visão geral: todas as criptos ordenadas por confluência e volatilidade -->
+  <section class="overview" id="overview">
+    <div class="ov-top">
+      <span class="ov-label">Mercado · por confluência e volatilidade</span>
+      <div class="ovtf" id="ovtf" role="group" aria-label="Tempo gráfico do ranking">
+        <button type="button" data-tf="1m">1m</button>
+        <button type="button" data-tf="5m" class="on">5m</button>
+        <button type="button" data-tf="15m">15m</button>
+      </div>
+    </div>
+    <div class="ovlist" id="ovlist"><div class="ovempty">carregando mercado…</div></div>
+  </section>
+
+  <!-- Detalhe da cripto selecionada: modelo top-down (15m manda, 5m confirma, 1m dispara) -->
   <section class="topdown" id="topdown">
     <div class="td-head">
-      <span class="ov-label">Direção do mercado · modelo top-down</span>
+      <span class="ov-label"><b id="detail-sym">BTC</b> · direção (top-down)</span>
       <span class="td-price" id="td-price">—</span>
     </div>
     <strong class="td-verdict wait" id="td-verdict">—</strong>

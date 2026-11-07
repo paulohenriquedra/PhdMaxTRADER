@@ -5,16 +5,24 @@ import { runBinaryBacktest, evalPayout } from "./backtest.js";
 
 const TIMEFRAMES = ["1m", "5m", "15m"];
 const REFRESH_MS = 5000;
+const OV_REFRESH_MS = 12000;        // atualiza o ranking do mercado
+const NOTIF_THROTTLE = 5 * 60 * 1000; // no máx. 1 alerta por cripto a cada 5 min
 const BT_DEPTH = 300; // velas para o backtest
 const BT_EVERY_MS = 60000; // recalcula o histórico no máx. a cada 60s
+const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
 
 const $ = (s) => document.querySelector(s);
 let symbol = localStorage.getItem("sc_symbol") || "BTCUSDT";
 let payout = clampPayout(+localStorage.getItem("sc_payout") || 85);
+let ovTf = localStorage.getItem("sc_ovtf") || "5m";
 let timer = null;
+let ovTimer = null;
 let lastBtAt = 0;
 let btCache = {}; // { tf: {n, winRate} }
 let lastDirByTf = {}; // direção atual por tf, para a recomendação
+let prevConf = {};    // confluência anterior por cripto (p/ detectar 100%)
+let lastNotifAt = {}; // última notificação por cripto
+let swReg = null;
 
 function clampPayout(v) { return Math.max(10, Math.min(100, v || 85)); }
 
@@ -31,14 +39,21 @@ function buildSymbolSelect() {
   const sel = $("#symbol");
   sel.innerHTML = SYMBOLS.map((s) => `<option value="${s.v}">${s.label}</option>`).join("");
   sel.value = symbol;
-  sel.addEventListener("change", () => {
-    symbol = sel.value;
-    localStorage.setItem("sc_symbol", symbol);
-    btCache = {};
-    lastBtAt = 0;
-    buildCards();
-    run(true);
-  });
+  sel.addEventListener("change", () => selectSymbol(sel.value));
+}
+
+// Seleciona a cripto do detalhe (pela lista de mercado, pelo seletor ou por link).
+function selectSymbol(sym, scroll = false) {
+  if (!SYMBOL_LABEL[sym]) return;
+  symbol = sym;
+  localStorage.setItem("sc_symbol", symbol);
+  const sel = $("#symbol");
+  if (sel) sel.value = symbol;
+  btCache = {};
+  lastBtAt = 0;
+  buildCards();
+  run(true);
+  if (scroll) $("#topdown")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function buildCards() {
@@ -119,6 +134,8 @@ function renderCard(tf, r, bt) {
 }
 
 function renderTopDown(price, td) {
+  const dsym = $("#detail-sym");
+  if (dsym) dsym.textContent = SYMBOL_LABEL[symbol] || symbol;
   $("#td-price").textContent = fmtPrice(price);
   const vEl = $("#td-verdict");
   vEl.className = "td-verdict " + vClass(td.verdict);
@@ -237,16 +254,142 @@ function bindPayout() {
   });
 }
 
+// ---- Visão geral: todas as criptos por confluência e volatilidade ----
+function bindOvTf() {
+  const box = $("#ovtf");
+  if (!box) return;
+  box.querySelectorAll("button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.tf === ovTf);
+    b.addEventListener("click", () => {
+      ovTf = b.dataset.tf;
+      localStorage.setItem("sc_ovtf", ovTf);
+      box.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.tf === ovTf));
+      runOverview();
+    });
+  });
+}
+
+async function runOverview() {
+  try {
+    const list = await Promise.all(
+      SYMBOLS.map(async (s) => {
+        try {
+          const candles = await fetchCandles(s.v, ovTf, 150);
+          const r = analyze(candles);
+          return { v: s.v, label: s.label, ok: r.ok, verdict: r.verdict, confluence: r.confluence, risk: r.risk };
+        } catch {
+          return { v: s.v, label: s.label, ok: false };
+        }
+      })
+    );
+    const ok = list.filter((x) => x.ok);
+    ok.sort((a, b) => b.confluence - a.confluence || b.risk - a.risk);
+    renderOverview(ok);
+    checkNotifications(ok);
+  } catch (_) { /* ignora este ciclo */ }
+}
+
+function renderOverview(list) {
+  const box = $("#ovlist");
+  if (!box) return;
+  if (!list.length) { box.innerHTML = `<div class="ovempty">sem dados do mercado</div>`; return; }
+  box.innerHTML = list
+    .map((x) => {
+      const cls = vClass(x.verdict);
+      const hot = x.confluence >= 100 ? " hot" : "";
+      const sel = x.v === symbol ? " sel" : "";
+      return `<button type="button" class="ovrow ${cls}${hot}${sel}" data-sym="${x.v}">
+        <span class="ovsym">${x.label}</span>
+        <span class="ovdir ${cls}">${vArrow(x.verdict)} ${x.verdict}</span>
+        <span class="ovm">conf <b>${x.confluence}%</b></span>
+        <span class="ovm">vol <b>${x.risk}%</b></span>
+      </button>`;
+    })
+    .join("");
+  box.querySelectorAll(".ovrow").forEach((b) =>
+    b.addEventListener("click", () => selectSymbol(b.dataset.sym, true))
+  );
+}
+
+// ---- Notificações (100% de confluência) ----
+function registerSW() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./sw.js").then((reg) => { swReg = reg; }).catch(() => {});
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data && e.data.type === "select" && e.data.sym) selectSymbol(e.data.sym, true);
+  });
+}
+
+function alertsOn() {
+  return typeof Notification !== "undefined" && Notification.permission === "granted" && localStorage.getItem("sc_alerts") === "1";
+}
+
+function updateAlertsBtn() {
+  const btn = $("#alerts");
+  if (!btn) return;
+  const on = alertsOn();
+  btn.classList.toggle("on", on);
+  btn.textContent = on ? "🔔 Alertas ativos" : "🔔 Ativar alertas";
+}
+
+function bindAlerts() {
+  const btn = $("#alerts");
+  if (!btn) return;
+  if (typeof Notification === "undefined") { btn.disabled = true; btn.textContent = "🔔 Sem suporte"; return; }
+  btn.addEventListener("click", async () => {
+    if (alertsOn()) { localStorage.setItem("sc_alerts", "0"); updateAlertsBtn(); return; }
+    let perm = Notification.permission;
+    if (perm !== "granted") perm = await Notification.requestPermission();
+    if (perm === "granted") {
+      localStorage.setItem("sc_alerts", "1");
+      fireNotif("Alertas ativados", "Você será avisado quando uma cripto atingir 100% de confluência.", null);
+    }
+    updateAlertsBtn();
+  });
+  updateAlertsBtn();
+}
+
+function fireNotif(title, body, sym) {
+  try {
+    const opts = { body, tag: sym || "sc", renotify: true, data: { sym } };
+    if (swReg && swReg.showNotification) swReg.showNotification(title, opts);
+    else if (typeof Notification !== "undefined") new Notification(title, opts);
+  } catch (_) {}
+}
+
+function checkNotifications(list) {
+  const now = Date.now();
+  for (const x of list) {
+    const was = prevConf[x.v] || 0;
+    prevConf[x.v] = x.confluence;
+    if (!alertsOn()) continue;
+    if (x.confluence >= 100 && was < 100 && now - (lastNotifAt[x.v] || 0) > NOTIF_THROTTLE) {
+      lastNotifAt[x.v] = now;
+      fireNotif(`${x.label} · 100% de confluência`, `${x.verdict} no ${ovTf} — toque para abrir`, x.v);
+    }
+  }
+}
+
 function start() {
+  const urlSym = new URLSearchParams(location.search).get("sym");
+  if (urlSym && SYMBOL_LABEL[urlSym]) symbol = urlSym;
   buildSymbolSelect();
   bindPayout();
+  bindOvTf();
+  bindAlerts();
+  registerSW();
   buildCards();
   run(true);
-  clearInterval(timer);
-  timer = setInterval(run, REFRESH_MS);
+  runOverview();
+  clearInterval(timer); timer = setInterval(run, REFRESH_MS);
+  clearInterval(ovTimer); ovTimer = setInterval(runOverview, OV_REFRESH_MS);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) clearInterval(timer);
-    else { run(); timer = setInterval(run, REFRESH_MS); }
+    if (document.hidden) { clearInterval(timer); clearInterval(ovTimer); }
+    else {
+      run(); runOverview();
+      timer = setInterval(run, REFRESH_MS);
+      ovTimer = setInterval(runOverview, OV_REFRESH_MS);
+    }
   });
 }
 
