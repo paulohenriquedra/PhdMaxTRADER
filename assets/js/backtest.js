@@ -17,6 +17,8 @@ import { analyze, VERDICT } from "./engine.js";
 export function runBinaryBacktest(candles, { expiryBars = 1, payout = 0.85 } = {}) {
   const warmup = 40;
   let wins = 0, losses = 0, pushes = 0;
+  // Subconjunto: só quando os 4 indicadores concordam (confluência 100%).
+  let wins4 = 0, losses4 = 0;
   let i = warmup;
   while (i < candles.length - expiryBars) {
     const r = analyze(candles.slice(0, i + 1));
@@ -24,14 +26,20 @@ export function runBinaryBacktest(candles, { expiryBars = 1, payout = 0.85 } = {
     const long = r.verdict === VERDICT.BUY;
     const entry = candles[i].c;
     const exp = candles[i + expiryBars].c;
+    const forte = r.confluence >= 100; // 4/4
     if (exp === entry) pushes++;
-    else if (long ? exp > entry : exp < entry) wins++;
-    else losses++;
+    else {
+      const ganhou = long ? exp > entry : exp < entry;
+      if (ganhou) { wins++; if (forte) wins4++; }
+      else { losses++; if (forte) losses4++; }
+    }
     i += expiryBars; // próxima operação após a expiração (sem sobrepor)
   }
   const n = wins + losses;
   const winRate = n ? wins / n : 0; // fração 0..1 (empates fora)
-  return { n, wins, losses, pushes, winRate, expiryBars, ...evalPayout(winRate, n, payout) };
+  const n4 = wins4 + losses4;
+  const winRate4 = n4 ? wins4 / n4 : 0;
+  return { n, wins, losses, pushes, winRate, n4, winRate4, expiryBars, ...evalPayout(winRate, n, payout) };
 }
 
 /**
