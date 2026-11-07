@@ -16,13 +16,15 @@ let armedDir = {};              // direção travada perto da virada, por cripto
 let day = { date: "", wins: 0, losses: 0, limit: 3 };
 let dayLocked = false;
 let lastLeadBoundary = 0;       // dedup da notificação de 30s por vela
-let pending = [];               // operações aguardando resultado
+let pending = loadPending();    // operações aguardando resultado (persistido)
 let streak = 0;                 // perdas seguidas
 let pauseStreak = +localStorage.getItem("sc_pausestreak") || 2;
 let paused = false;             // pausa temporária após sequência de perdas
 let history = loadHistory();    // histórico de operações (p/ estudar)
 
 function loadHistory() { try { return JSON.parse(localStorage.getItem("sc_history") || "[]"); } catch (_) { return []; } }
+function loadPending() { try { return JSON.parse(localStorage.getItem("sc_pending") || "[]"); } catch (_) { return []; } }
+function savePending() { try { localStorage.setItem("sc_pending", JSON.stringify(pending)); } catch (_) {} }
 function saveHistory() { try { history = history.slice(-300); localStorage.setItem("sc_history", JSON.stringify(history)); } catch (_) {} }
 const LOW_VOL = 35;
 const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 };
@@ -147,9 +149,14 @@ function flashToast(msg, good) {
 // - aceitou no ⚡ CLIQUE (logo após a virada): vale pra vela atual;
 // - aceitou antes (PREPARAR/direção): vale pra PRÓXIMA vela (a da virada).
 function registerTrade(sym) {
-  if (paused || dayLocked) return;
+  if (paused) { flashToast("Em pausa — não registrado", false); return; }
+  if (dayLocked) { flashToast("Limite do dia atingido — não registrado", false); return; }
   const a = aCache[sym];
-  if (!a || !a.ok || (a.verdict !== VERDICT.BUY && a.verdict !== VERDICT.SELL)) return;
+  if (!a || !a.ok) { flashToast(`${SYMBOL_LABEL[sym] || sym}: sem dados — não registrado`, false); return; }
+  if (a.verdict !== VERDICT.BUY && a.verdict !== VERDICT.SELL) {
+    flashToast(`${SYMBOL_LABEL[sym]}: sem direção clara (${a.verdict}) — não registrado`, false);
+    return;
+  }
   const dur = DUR[ovTf] || 300000, now = Date.now();
   const into = now % dur;
   const open = into <= 3000 ? now - into : now - into + dur; // vela operada (abre em 'open')
@@ -159,8 +166,9 @@ function registerTrade(sym) {
   }
   const votes = a.votes ? a.votes.map((v) => `${v.nome}=${v.dir}`).join("|") : "";
   pending.push({ sym, dir: a.verdict, open, at: open + dur, tf: ovTf, snap: { conf: a.confluence, regime: a.regime, risk: a.risk, votes } });
+  savePending();
   const quando = into <= 3000 ? "vale pra ESTA vela" : "vale pra PRÓXIMA vela — entre na virada";
-  flashToast(`Aceito: ${SYMBOL_LABEL[sym]} ${a.verdict} · ${quando}`);
+  flashToast(`✓ Aceito: ${SYMBOL_LABEL[sym]} ${a.verdict} · ${quando}`, true);
 }
 function recordOutcome(sym, win) {
   if (win) { day.wins++; streak = 0; }
@@ -172,22 +180,26 @@ function recordOutcome(sym, win) {
   renderDay();
   const hm = $("#histModal"); if (hm && !hm.hidden) renderHist();
 }
-function resolvePending() {
+async function resolvePending() {
+  if (!pending.length) return;
   const now = Date.now();
   let changed = false;
   for (let i = pending.length - 1; i >= 0; i--) {
     const p = pending[i], dur = DUR[p.tf] || 300000;
     if (now < p.open + dur) continue; // a vela de resultado ainda não fechou
-    const arr = candlesSym[p.sym];
-    if (!arr) continue;
-    const cndl = arr.find((c) => c.t === p.open);
+    let cndl = (candlesSym[p.sym] || []).find((c) => c.t === p.open);
     if (!cndl) {
-      if (now > p.at + dur * 3) pending.splice(i, 1); // velho demais: descarta
+      // busca a vela exata da operação (ex.: voltou de outra aba / outro tempo)
+      try { const c = await fetchCandles(p.sym, p.tf, 200); cndl = c.find((x) => x.t === p.open); } catch (_) {}
+    }
+    if (!cndl) {
+      if (now > p.at + dur * 3) { pending.splice(i, 1); savePending(); } // velho demais: descarta
       continue;
     }
     // Resultado = direção da própria vela operada (abertura → fechamento).
     const win = p.dir === VERDICT.BUY ? cndl.c > cndl.o : cndl.c < cndl.o;
     pending.splice(i, 1);
+    savePending();
     const s = p.snap || {};
     const result = win ? "green" : "loss";
     history.push({ t: p.open, sym: p.sym, dir: p.dir, tf: p.tf, result, conf: s.conf, regime: s.regime, risk: s.risk, votes: s.votes });
@@ -499,10 +511,11 @@ function bindAlerts() {
   updateAlertsBtn();
 }
 function fireNotif(title, body, sym) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   try {
     const opts = { body, tag: sym || "sc", renotify: true, data: { sym } };
     if (swReg && swReg.showNotification) swReg.showNotification(title, opts);
-    else if (typeof Notification !== "undefined") new Notification(title, opts);
+    else new Notification(title, opts);
   } catch (_) {}
 }
 function checkNotifications() {
