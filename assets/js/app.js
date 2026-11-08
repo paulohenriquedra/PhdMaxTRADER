@@ -242,6 +242,9 @@ function renderHistRows(rows, fonte) {
   const tend = h.filter((x) => x.regime === "tendencia");
   const notend = h.filter((x) => x.regime && x.regime !== "tendencia");
   const c100 = h.filter((x) => x.conf >= 100), c75 = h.filter((x) => x.conf < 100);
+  const vb = h.filter((x) => x.risk != null && x.risk < 35);
+  const vm = h.filter((x) => x.risk != null && x.risk >= 35 && x.risk < 50);
+  const va = h.filter((x) => x.risk != null && x.risk >= 50);
   // lista (mais recentes primeiro)
   list.innerHTML = h.slice().sort((a, b) => b.t - a.t).map((x) => {
     const d = new Date(x.t);
@@ -258,7 +261,8 @@ function renderHistRows(rows, fonte) {
     `<div class="hstat-row"><b>Por cripto:</b> ${symLines}</div>` +
     `<div class="hstat-row"><b>Condição:</b> <span class="hchip">✅ tendência: ${wrLabel(tend)}</span> <span class="hchip">🌀😴 instável/parado: ${wrLabel(notend)}</span></div>` +
     `<div class="hstat-row"><b>Confluência:</b> <span class="hchip">4/4: ${wrLabel(c100)}</span> <span class="hchip">3/4: ${wrLabel(c75)}</span></div>` +
-    `<div class="hstat-src">${fonte}</div>`;
+    `<div class="hstat-row"><b>Volatilidade:</b> <span class="hchip">baixa &lt;35: ${wrLabel(vb)}</span> <span class="hchip">média: ${wrLabel(vm)}</span> <span class="hchip">alta ≥50: ${wrLabel(va)}</span></div>` +
+    `<div class="hstat-src">${fonte} · amostra pequena = não confie em padrão ainda</div>`;
 }
 async function renderHist() {
   const list = $("#histList");
