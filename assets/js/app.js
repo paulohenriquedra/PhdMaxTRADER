@@ -499,7 +499,17 @@ function scheduleWsRender() {
 // ---- Notificações: 100% confluência + vol baixa + mercado com tendência ----
 function registerSW() {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("./sw.js").then((reg) => { swReg = reg; }).catch(() => {});
+  // quando um service worker novo assume, recarrega uma vez p/ pegar a versão nova
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register("./sw.js").then((reg) => {
+    swReg = reg;
+    if (reg.update) reg.update(); // checa atualização a cada carga
+  }).catch(() => {});
 }
 function alertsOn() {
   return typeof Notification !== "undefined" && Notification.permission === "granted" && localStorage.getItem("sc_alerts") === "1";

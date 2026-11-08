@@ -1,9 +1,36 @@
-// sw.js — service worker mínimo para notificações.
-// No Android, notificações precisam vir do service worker (showNotification),
-// e é aqui que tratamos o clique para abrir/focar o app.
+// sw.js — service worker: notificações + "network-first" para nunca ficar
+// preso em versão antiga (cache). Sempre busca o arquivo novo quando online;
+// usa o cache só como reserva offline.
+const CACHE = "sc-cache-v1";
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // só arquivos do próprio app
+  event.respondWith((async () => {
+    try {
+      const fresh = await fetch(req, { cache: "no-store" }); // sempre o mais novo
+      const cache = await caches.open(CACHE);
+      cache.put(req, fresh.clone());
+      return fresh;
+    } catch (_) {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      throw _;
+    }
+  })());
+});
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
