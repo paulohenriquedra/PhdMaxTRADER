@@ -336,7 +336,8 @@ function scores(a) {
   const alive = a.regime === "tendencia";
   const conf = alive ? a.confluence : (a.regime === "instavel" ? 30 : 12);
   const confVal = alive ? a.confluence + "%" : regIcon(a.regime);
-  const vol = a.risk < 35 ? 90 : a.risk < 65 ? 55 : 20;
+  // Vol só fica "bom" (verde) com tendência; parado/instável = baixo/vermelho.
+  const vol = alive ? (a.risk < 35 ? 90 : a.risk < 65 ? 55 : 20) : (a.regime === "instavel" ? 30 : 12);
   const bt = btCacheSym[a.sym];
   let hist = 50, histVal = "—";
   if (bt) {
