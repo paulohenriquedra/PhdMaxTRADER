@@ -331,8 +331,11 @@ function checkLeadNotification() {
 }
 
 function scores(a) {
-  const conf = a.confluence;
-  const tend = a.regime === "tendencia" ? 100 : a.regime === "instavel" ? 40 : 15;
+  // Conf agora inclui a condição do mercado: só vale quando há tendência.
+  // Parado/instável -> Conf baixo e mostra o ícone, em vez de % enganoso.
+  const alive = a.regime === "tendencia";
+  const conf = alive ? a.confluence : (a.regime === "instavel" ? 30 : 12);
+  const confVal = alive ? a.confluence + "%" : regIcon(a.regime);
   const vol = a.risk < 35 ? 90 : a.risk < 65 ? 55 : 20;
   const bt = btCacheSym[a.sym];
   let hist = 50, histVal = "—";
@@ -342,7 +345,7 @@ function scores(a) {
     hist = m >= 1.5 ? 90 : m >= -1.5 ? 50 : 20;
     histVal = `${m >= 0 ? "+" : "−"}${Math.abs(m).toFixed(0)}%`;
   }
-  return { conf, tend, vol, hist, histVal };
+  return { conf, confVal, vol, hist, histVal };
 }
 
 function miniBar(label, score, val) {
@@ -370,7 +373,7 @@ function renderList() {
   rows.forEach((r) => {
     const sc = scores(r.a);
     r.sc = sc;
-    r.q = (sc.conf + sc.tend + sc.vol + sc.hist) / 4;
+    r.q = (sc.conf + sc.vol + sc.hist) / 3;
   });
   rows.sort((x, y) => y.act.key - x.act.key || y.q - x.q);
 
@@ -384,8 +387,7 @@ function renderList() {
         ${operar}
       </div>
       <div class="mbars">
-        ${miniBar("Conf", sc.conf, a.confluence + "%")}
-        ${miniBar("Tend", sc.tend, regIcon(a.regime))}
+        ${miniBar("Conf", sc.conf, sc.confVal)}
         ${miniBar("Vol", sc.vol, a.risk + "%")}
         ${miniBar("Hist", sc.hist, sc.histVal)}
       </div>
