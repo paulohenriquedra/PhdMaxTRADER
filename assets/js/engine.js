@@ -107,12 +107,25 @@ export function analyze(candles) {
       : `${concordam} de ${total} indicadores em ${dirLabel}`;
 
   // ---- Condição do mercado (regime) ----
-  // Efficiency Ratio: progresso líquido vs. movimento total. Baixo = sem
-  // direção clara (picotado ou parado — não hábil a operar).
+  // (a) AMPLITUDE: o mercado está se mexendo o suficiente? Mesmo com os
+  //     indicadores concordando, se as últimas velas quase não andaram, é
+  //     mercado PARADO — operar aqui é pura sorte no micro-ruído.
+  const n = closes.length;
+  let paradoAmp = false;
+  if (n >= 16) {
+    const rngs = [];
+    for (let k = n - 15; k < n; k++) rngs.push(highs[k] - lows[k]);
+    const medR = median(rngs);
+    const s3 = Math.max(highs[n - 1], highs[n - 2], highs[n - 3]) - Math.min(lows[n - 1], lows[n - 2], lows[n - 3]);
+    paradoAmp = medR > 0 && s3 < medR; // 3 velas andaram menos que 1 vela típica
+  }
+  // (b) Efficiency Ratio: progresso líquido vs. movimento total (picotado?).
   const er = efficiencyRatio(closes, 10);
   let regime = "tendencia"; // ✅ movimento com direção
   let regimeLabel = "Com tendência";
-  if (er != null && er < 0.4) {
+  if (paradoAmp) {
+    regime = "parado"; regimeLabel = "Parado (sem movimento)";
+  } else if (er != null && er < 0.4) {
     if (risk < 25) { regime = "parado"; regimeLabel = "Parado"; }
     else { regime = "instavel"; regimeLabel = "Instável (vai-e-volta)"; }
   }

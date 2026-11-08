@@ -56,7 +56,6 @@ let prevAlert = {}, lastNotifAt = {}, swReg = null;
 let ws = null, wsFails = 0, wsRenderPending = false;
 
 function clampPayout(v) { return Math.max(10, Math.min(100, v || 90)); }
-function median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 const regIcon = (r) => (r === "tendencia" ? "✅" : r === "parado" ? "😴" : "🌀");
 function fmtCountdown(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -158,24 +157,16 @@ function registerTrade(sym) {
     flashToast(`${SYMBOL_LABEL[sym]}: sem direção clara (${a.verdict}) — não registrado`, false);
     return;
   }
-  // Proteção 1: uma operação por vez. Só aceita a próxima quando a anterior
+  // Proteção: só opera com mercado em tendência (parado/instável = não).
+  if (a.regime !== "tendencia") {
+    flashToast(`${SYMBOL_LABEL[sym]}: ${(a.regimeLabel || "sem tendência").toLowerCase()} — não registrado`, false);
+    return;
+  }
+  // Proteção: uma operação por vez. Só aceita a próxima quando a anterior
   // resolver — assim a pausa após perdas realmente te segura.
   if (pending.length > 0) {
     flashToast("Espere o resultado da operação anterior (1 por vez)", false);
     return;
-  }
-  // Proteção 2: não operar em mercado parado (quase sem movimento).
-  const arr = candlesSym[sym] || [];
-  if (arr.length >= 20) {
-    const closed = arr.slice(0, -1); // exclui a vela em formação
-    const ranges = closed.slice(-20).map((c) => c.h - c.l).filter((r) => r > 0);
-    const med = median(ranges);
-    const last3 = closed.slice(-3);
-    const span3 = Math.max(...last3.map((c) => c.h)) - Math.min(...last3.map((c) => c.l));
-    if (med > 0 && span3 < med) {
-      flashToast(`${SYMBOL_LABEL[sym]}: mercado parado (sem movimento) — não registrado`, false);
-      return;
-    }
   }
   const dur = DUR[ovTf] || 300000, now = Date.now();
   const into = now % dur;
