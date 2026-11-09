@@ -153,6 +153,15 @@ body {
 }
 .mgo:hover { background: rgba(59,130,246,.12); }
 .mgo.hot { color: #fff; background: var(--accent); border-color: var(--accent); }
+.msig {
+  margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 800; font-size: 12.5px; letter-spacing: .2px;
+  padding: 5px 12px; border-radius: 999px; border: 1px solid transparent;
+}
+.msig::before { content: "●"; font-size: 10px; }
+.msig.otimo { color: #d1fae5; background: rgba(16,185,129,.16); border-color: rgba(16,185,129,.45); }
+.msig.bom   { color: #fde68a; background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.40); }
+.msig.ruim  { color: #fecaca; background: rgba(239,68,68,.14);  border-color: rgba(239,68,68,.40); }
 .mbars { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 9px; }
 .mbar { display: flex; align-items: center; gap: 7px; font-size: 11px; }
 .mbl { color: var(--muted); width: 30px; flex: none; }

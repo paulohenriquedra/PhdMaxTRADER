@@ -355,6 +355,22 @@ function scores(a) {
   return { conf, confVal, vol, mov, movVal, hist, histVal };
 }
 
+// Veredito ÚNICO do sinal (o que o usuário entendia por "confluência"): junta
+// indicadores + movimento + tendência + volatilidade num só rótulo.
+// Vetos: moeda parada, pouco movimento ou vol extrema = "ruim", por mais que
+// os 4 indicadores concordem — 100% de confluência numa moeda parada não vale.
+function signalQuality(a, sc) {
+  if (!a || (a.verdict !== VERDICT.BUY && a.verdict !== VERDICT.SELL)) return null;
+  const movRatio = a.minMove ? (a.movePct || 0) / a.minMove : 0;
+  if (a.regime !== "tendencia" || movRatio < 1 || a.risk >= 80) {
+    return { cls: "ruim", txt: "Sinal ruim", q: 0 };
+  }
+  const q = sc.conf * 0.35 + sc.mov * 0.30 + sc.vol * 0.20 + sc.hist * 0.15;
+  if (q >= 75) return { cls: "otimo", txt: "Sinal ótimo", q };
+  if (q >= 55) return { cls: "bom", txt: "Sinal bom", q };
+  return { cls: "ruim", txt: "Sinal ruim", q };
+}
+
 function miniBar(label, score, val) {
   return `<div class="mbar"><span class="mbl">${label}</span>` +
     `<span class="mbt"><i style="width:${score}%;background:${scoreColor(score)}"></i></span>` +
@@ -380,19 +396,23 @@ function renderList() {
   rows.forEach((r) => {
     const sc = scores(r.a);
     r.sc = sc;
-    r.q = (sc.conf + sc.vol + sc.mov + sc.hist) / 4;
+    r.sig = signalQuality(r.a, sc);
+    // qualidade p/ ordenar: sinal vetado (ruim) vai pro fim; senão pelo score.
+    r.q = r.sig ? r.sig.q : (sc.conf + sc.vol + sc.mov + sc.hist) / 4;
   });
   rows.sort((x, y) => y.act.key - x.act.key || y.q - x.q);
 
   box.innerHTML = rows.map((r) => {
-    const a = r.a, sc = r.sc, act = r.act;
+    const a = r.a, sc = r.sc, act = r.act, sig = r.sig;
     const operar = `<a class="mgo${act.hot ? " hot" : ""}" href="${BROKER}" target="_blank" rel="noopener noreferrer">Operar ↗</a>`;
+    const sigBand = sig ? `<div class="msig ${sig.cls}">${sig.txt}</div>` : "";
     return `<div class="mrow ${act.cls}${act.hot ? " hot" : ""}" data-sym="${r.v}">
       <div class="mrow-top">
         <span class="msym">${r.label}</span>
         <span class="maction ${act.cls}">${act.txt} <span class="mclk">${remTxt}</span></span>
         ${operar}
       </div>
+      ${sigBand}
       <div class="mbars">
         ${miniBar("Conf", sc.conf, sc.confVal)}
         ${miniBar("Vol", sc.vol, a.risk + "%")}
