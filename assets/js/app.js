@@ -341,7 +341,8 @@ function scores(a) {
   // Mov: força do movimento (amplitude da vela vs piso mínimo). Mais = mais
   // confiável (bate mais com a corretora); pouco = fio de cabelo.
   const ratio = a.minMove ? (a.movePct || 0) / a.minMove : 0;
-  const mov = ratio >= 2 ? 90 : ratio >= 1.3 ? 55 : ratio >= 1 ? 38 : 18;
+  // ratio < 1 = abaixo do piso operável (vira "parado" e o Operar é bloqueado).
+  const mov = ratio >= 1.6 ? 90 : ratio >= 1.0 ? 55 : 18;
   const movVal = (a.movePct || 0).toFixed(2) + "%";
   const bt = btCacheSym[a.sym];
   let hist = 50, histVal = "—";

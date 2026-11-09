@@ -113,7 +113,11 @@ export function analyze(candles) {
   const n = closes.length;
   // piso mínimo de movimento (% do preço), escalado pelo tempo da vela
   const durMin = n > 1 ? (candles[1].t - candles[0].t) / 60000 : 1;
-  const minRangePct = 0.06 * Math.sqrt(durMin || 1);
+  // Piso calibrado com dados reais (Binance/OKX): abaixo disso o movimento é
+  // menor que a divergência entre os feeds (corretora x exchange) e a direção
+  // da vela vira cara-ou-coroa. Trava BTC/BNB/ETC parados; deixa passar as que
+  // andam (ARB/NEAR/SUI/ZEC). Escalado pelo tempo da vela (√ do minuto).
+  const minRangePct = 0.15 * Math.sqrt(durMin || 1);
   let paradoAmp = false;
   let movePct = 0; // amplitude típica da vela, em % do preço (força do movimento)
   if (n >= 16) {
