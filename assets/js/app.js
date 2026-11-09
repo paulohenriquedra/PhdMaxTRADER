@@ -351,7 +351,7 @@ function scores(a) {
     hist = m >= 1.5 ? 90 : m >= -1.5 ? 50 : 20;
     histVal = `${m >= 0 ? "+" : "−"}${Math.abs(m).toFixed(0)}%`;
   }
-  return { conf, confVal, vol, hist, histVal };
+  return { conf, confVal, vol, mov, movVal, hist, histVal };
 }
 
 function miniBar(label, score, val) {
