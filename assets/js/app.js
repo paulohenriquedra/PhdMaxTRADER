@@ -338,6 +338,11 @@ function scores(a) {
   const confVal = alive ? a.confluence + "%" : regIcon(a.regime);
   // Vol só fica "bom" (verde) com tendência; parado/instável = baixo/vermelho.
   const vol = alive ? (a.risk < 35 ? 90 : a.risk < 65 ? 55 : 20) : (a.regime === "instavel" ? 30 : 12);
+  // Mov: força do movimento (amplitude da vela vs piso mínimo). Mais = mais
+  // confiável (bate mais com a corretora); pouco = fio de cabelo.
+  const ratio = a.minMove ? (a.movePct || 0) / a.minMove : 0;
+  const mov = ratio >= 2 ? 90 : ratio >= 1.3 ? 55 : ratio >= 1 ? 38 : 18;
+  const movVal = (a.movePct || 0).toFixed(2) + "%";
   const bt = btCacheSym[a.sym];
   let hist = 50, histVal = "—";
   if (bt) {
@@ -374,7 +379,7 @@ function renderList() {
   rows.forEach((r) => {
     const sc = scores(r.a);
     r.sc = sc;
-    r.q = (sc.conf + sc.vol + sc.hist) / 3;
+    r.q = (sc.conf + sc.vol + sc.mov + sc.hist) / 4;
   });
   rows.sort((x, y) => y.act.key - x.act.key || y.q - x.q);
 
@@ -390,6 +395,7 @@ function renderList() {
       <div class="mbars">
         ${miniBar("Conf", sc.conf, sc.confVal)}
         ${miniBar("Vol", sc.vol, a.risk + "%")}
+        ${miniBar("Mov", sc.mov, sc.movVal)}
         ${miniBar("Hist", sc.hist, sc.histVal)}
       </div>
     </div>`;

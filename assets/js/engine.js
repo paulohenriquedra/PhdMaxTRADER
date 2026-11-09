@@ -115,14 +115,15 @@ export function analyze(candles) {
   const durMin = n > 1 ? (candles[1].t - candles[0].t) / 60000 : 1;
   const minRangePct = 0.06 * Math.sqrt(durMin || 1);
   let paradoAmp = false;
+  let movePct = 0; // amplitude típica da vela, em % do preço (força do movimento)
   if (n >= 16) {
     const rngs = [];
     for (let k = n - 15; k < n; k++) rngs.push(highs[k] - lows[k]);
     const medR = median(rngs);
-    const medRangePct = price ? (medR / price) * 100 : 0;
+    movePct = price ? (medR / price) * 100 : 0;
     const s3 = Math.max(highs[n - 1], highs[n - 2], highs[n - 3]) - Math.min(lows[n - 1], lows[n - 2], lows[n - 3]);
     // parado se: a vela típica mal anda (absoluto) OU o movimento colapsou (relativo)
-    paradoAmp = medRangePct < minRangePct || (medR > 0 && s3 < medR);
+    paradoAmp = movePct < minRangePct || (medR > 0 && s3 < medR);
   }
   // (b) Efficiency Ratio: progresso líquido vs. movimento total (picotado?).
   const er = efficiencyRatio(closes, 10);
@@ -148,6 +149,8 @@ export function analyze(candles) {
     atr: atrVal,
     atrPct,
     er,
+    movePct,
+    minMove: minRangePct,
     regime,
     regimeLabel,
     resumoVotos,
