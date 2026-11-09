@@ -27,7 +27,7 @@ function loadPending() { try { return JSON.parse(localStorage.getItem("sc_pendin
 function savePending() { try { localStorage.setItem("sc_pending", JSON.stringify(pending)); } catch (_) {} }
 function saveHistory() { try { history = history.slice(-300); localStorage.setItem("sc_history", JSON.stringify(history)); } catch (_) {} }
 const LOW_VOL = 35;
-const DUR = { "1m": 60000, "5m": 300000, "15m": 900000 };
+const DUR = { "1m": 60000, "2m": 120000, "5m": 300000, "15m": 900000 };
 // Banco de dados (Supabase) — a chave 'anon' é pública por design; o acesso é
 // controlado por RLS no servidor. Só a tabela 'operacoes' é liberada.
 const SB_URL = "https://mgvbhrfdmfxxdesayhvs.supabase.co";
@@ -55,7 +55,7 @@ let btCacheSym = {};   // { SYM: {n, winRate} }
 let bestTfCache = {};  // { SYM: {tf, winRate, n, strong} | null } — melhor tempo
 let lastBestTfAt = 0, bestTfRunning = false;
 const BESTTF_EVERY_MS = 10 * 60 * 1000; // recalcula no máx. a cada 10 min (pesado)
-const BESTTF_TFS = ["1m", "5m", "15m"];
+const BESTTF_TFS = ["1m", "2m", "5m", "15m"];
 const BESTTF_MIN_N = 20;      // amostra mínima p/ confiar num tempo
 const BESTTF_MIN_GAP = 0.05;  // só sugere se o melhor supera o 2º em >=5pp
 let prevAlert = {}, lastNotifAt = {}, swReg = null;
@@ -547,10 +547,14 @@ async function computeBestTf(force) {
 
 // ---- WebSocket (tempo real) de todas as criptos no tempo escolhido ----
 function closeWS() { if (ws) { try { ws.onclose = null; ws.close(); } catch (_) {} ws = null; } }
+const NATIVE_WS = new Set(["1m", "5m", "15m"]); // Binance não tem stream de 2m
 function connectWS() {
   if (typeof WebSocket === "undefined") return;
   closeWS();
   const tf = ovTf;
+  // Tempos sintéticos (2m) não têm stream nativo: atualiza pelo polling (10s),
+  // que re-monta a vela a cada busca — sem risco de somar volume errado.
+  if (!NATIVE_WS.has(tf)) return;
   const streams = SYMBOLS.map((s) => s.v.toLowerCase() + "@kline_" + tf).join("/");
   let sock;
   try { sock = new WebSocket("wss://stream.binance.com:9443/stream?streams=" + streams); }

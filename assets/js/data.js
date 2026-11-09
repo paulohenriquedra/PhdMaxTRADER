@@ -37,7 +37,37 @@ const PROVIDERS = [
   },
 ];
 
+// Tempos "sintéticos": a exchange não tem a vela nativa, então montamos
+// agregando a base (ex.: 2m = duas velas de 1m). O resultado é real — só o
+// recorte do tempo que é nosso.
+const SYNTH = { "2m": { base: "1m", factor: 2, step: 120000 } };
+
+function aggregate(candles, step) {
+  const out = [];
+  let b = null;
+  for (const c of candles) {
+    const start = Math.floor(c.t / step) * step; // alinha ao início do bloco
+    if (!b || b.t !== start) {
+      if (b) out.push(b);
+      b = { t: start, o: c.o, h: c.h, l: c.l, c: c.c, v: c.v };
+    } else {
+      if (c.h > b.h) b.h = c.h;
+      if (c.l < b.l) b.l = c.l;
+      b.c = c.c; b.v += c.v;
+    }
+  }
+  if (b) out.push(b);
+  return out;
+}
+
 export async function fetchCandles(symbol, interval, limit = 150) {
+  const syn = SYNTH[interval];
+  if (syn) {
+    const base = await fetchCandles(symbol, syn.base, Math.min(limit * syn.factor + syn.factor, 1000));
+    const agg = aggregate(base, syn.step).slice(-limit);
+    agg.source = base.source;
+    return agg;
+  }
   let lastErr;
   for (const p of PROVIDERS) {
     try {
