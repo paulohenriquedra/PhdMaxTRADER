@@ -46,7 +46,7 @@ const deviceId = (() => {
 const SYMBOL_LABEL = Object.fromEntries(SYMBOLS.map((s) => [s.v, s.label]));
 
 const $ = (s) => document.querySelector(s);
-let ovTf = localStorage.getItem("sc_ovtf") || "5m";
+let ovTf = localStorage.getItem("sc_ovtf") || "2m";
 let payout = clampPayout(+localStorage.getItem("sc_payout") || 90);
 let timer = null, lastBtAt = 0;
 let candlesSym = {};   // { SYM: candles[] }
