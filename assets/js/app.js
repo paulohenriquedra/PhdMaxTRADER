@@ -248,20 +248,44 @@ function wrLabel(arr) {
   const t = arr.length, w = arr.filter((x) => x.result === "green").length;
   return t ? `${((w / t) * 100).toFixed(0)}% (${w}/${t})` : "—";
 }
+// Chip com VEREDITO honesto: verde só quando há amostra suficiente E acerto
+// claramente acima do equilíbrio; vermelho quando claramente abaixo; apagado
+// quando são poucos dados (não confie ainda).
+function wrChip(label, arr, minN = 20) {
+  const t = arr.length, w = arr.filter((x) => x.result === "green").length;
+  if (!t) return `<span class="hv weak">${label}: —</span>`;
+  const wr = (w / t) * 100;
+  const be = 100 / (1 + payout / 100);
+  let cls = "weak", mark = "";
+  if (t >= minN) {
+    if (wr >= be + 2) { cls = "good"; mark = " ✅"; }
+    else if (wr <= be - 4) { cls = "bad"; mark = " ⚠️"; }
+    else cls = "mid";
+  }
+  const tip = t < minN ? ` — só ${t} ops, amostra pequena` : ` — ${t} ops`;
+  return `<span class="hv ${cls}" title="${label}${tip}">${label}: ${wr.toFixed(0)}% (${w}/${t})${mark}</span>`;
+}
 function renderHistRows(rows, fonte) {
   const list = $("#histList"), stats = $("#histStats");
   if (!list || !stats) return;
   if (!rows.length) { stats.innerHTML = ""; list.innerHTML = `<div class="ovempty">Nenhuma operação registrada ainda.</div>`; return; }
   const h = rows;
   const bySym = {}; h.forEach((x) => { (bySym[x.sym] = bySym[x.sym] || []).push(x); });
-  const symLines = Object.entries(bySym).sort((a, b) => b[1].length - a[1].length)
-    .map(([s, a]) => `<span class="hchip">${s}: ${wrLabel(a)}</span>`).join("");
   const tend = h.filter((x) => x.regime === "tendencia");
   const notend = h.filter((x) => x.regime && x.regime !== "tendencia");
   const c100 = h.filter((x) => x.conf >= 100), c75 = h.filter((x) => x.conf < 100);
   const vb = h.filter((x) => x.risk != null && x.risk < 35);
   const vm = h.filter((x) => x.risk != null && x.risk >= 35 && x.risk < 50);
   const va = h.filter((x) => x.risk != null && x.risk >= 50);
+  // por TEMPO e por HORA (do seu relógio) — onde VOCÊ acerta mais
+  const byTf = {}; h.forEach((x) => { (byTf[x.tf] = byTf[x.tf] || []).push(x); });
+  const tfLines = ["1m", "2m", "5m", "15m"].filter((t) => byTf[t]).map((t) => wrChip(t, byTf[t])).join(" ");
+  const byHour = {}; h.forEach((x) => { const hr = new Date(x.t).getHours(); (byHour[hr] = byHour[hr] || []).push(x); });
+  const hourLines = Object.keys(byHour).map(Number).sort((a, b) => a - b)
+    .map((hr) => wrChip(String(hr).padStart(2, "0") + "h", byHour[hr])).join(" ");
+  const symChips = Object.entries(bySym).sort((a, b) => b[1].length - a[1].length)
+    .map(([s, a]) => wrChip(s, a)).join(" ");
+  const be = (100 / (1 + payout / 100)).toFixed(0);
   // lista (mais recentes primeiro)
   list.innerHTML = h.slice().sort((a, b) => b.t - a.t).map((x) => {
     const d = new Date(x.t);
@@ -274,12 +298,15 @@ function renderHistRows(rows, fonte) {
   }).join("");
   // RESULTADOS (abaixo da lista)
   stats.innerHTML =
-    `<div class="hstat-main">Resultado geral: <b>${wrLabel(h)}</b></div>` +
-    `<div class="hstat-row"><b>Por cripto:</b> ${symLines}</div>` +
-    `<div class="hstat-row"><b>Condição:</b> <span class="hchip">✅ tendência: ${wrLabel(tend)}</span> <span class="hchip">🌀😴 instável/parado: ${wrLabel(notend)}</span></div>` +
-    `<div class="hstat-row"><b>Confluência:</b> <span class="hchip">4/4: ${wrLabel(c100)}</span> <span class="hchip">3/4: ${wrLabel(c75)}</span></div>` +
-    `<div class="hstat-row"><b>Volatilidade:</b> <span class="hchip">baixa &lt;35: ${wrLabel(vb)}</span> <span class="hchip">média: ${wrLabel(vm)}</span> <span class="hchip">alta ≥50: ${wrLabel(va)}</span></div>` +
-    `<div class="hstat-src">${fonte} · amostra pequena = não confie em padrão ainda</div>`;
+    `<div class="hstat-main">Seu desempenho real: <b>${wrLabel(h)}</b> · pra lucrar a ${payout}% você precisa de <b>${be}%</b></div>` +
+    `<div class="hstat-legend">🟢 bom e confiável · 🔴 evite · ⚪ poucos dados (não confie ainda)</div>` +
+    `<div class="hstat-row"><b>Por tempo:</b> ${tfLines || "—"}</div>` +
+    `<div class="hstat-row"><b>Por hora (seu relógio):</b> ${hourLines || "—"}</div>` +
+    `<div class="hstat-row"><b>Por cripto:</b> ${symChips}</div>` +
+    `<div class="hstat-row"><b>Condição:</b> ${wrChip("✅ tendência", tend)} ${wrChip("🌀😴 parado/instável", notend)}</div>` +
+    `<div class="hstat-row"><b>Confluência:</b> ${wrChip("4/4", c100)} ${wrChip("3/4", c75)}</div>` +
+    `<div class="hstat-row"><b>Volatilidade:</b> ${wrChip("baixa", vb)} ${wrChip("média", vm)} ${wrChip("alta", va)}</div>` +
+    `<div class="hstat-src">${fonte} · o veredito só fica verde/vermelho com 20+ operações no grupo</div>`;
 }
 async function renderHist() {
   const list = $("#histList");

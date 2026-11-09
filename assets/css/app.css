@@ -441,6 +441,15 @@ body {
 .hstat-row b { color: var(--text); }
 .hchip { display: inline-block; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; margin: 2px 3px 0 0; font-size: 11.5px; color: var(--text); }
 .hstat-src { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.hstat-legend { font-size: 11px; color: var(--muted); margin: 2px 0 6px; }
+.hv {
+  display: inline-block; border-radius: 999px; padding: 2px 8px; margin: 2px 3px 0 0;
+  font-size: 11.5px; border: 1px solid var(--border); background: var(--card); color: var(--text);
+}
+.hv.good { color: #6ee7b7; background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.45); font-weight: 700; }
+.hv.bad  { color: #fca5a5; background: rgba(239,68,68,.14);  border-color: rgba(239,68,68,.45); font-weight: 700; }
+.hv.mid  { color: var(--text); }
+.hv.weak { color: var(--muted); opacity: .7; }
 
 /* Disclaimer + footer */
 .disclaimer {
