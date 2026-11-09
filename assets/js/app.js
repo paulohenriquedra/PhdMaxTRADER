@@ -52,6 +52,12 @@ let timer = null, lastBtAt = 0;
 let candlesSym = {};   // { SYM: candles[] }
 let aCache = {};       // { SYM: resultado do analyze }
 let btCacheSym = {};   // { SYM: {n, winRate} }
+let bestTfCache = {};  // { SYM: {tf, winRate, n, strong} | null } — melhor tempo
+let lastBestTfAt = 0, bestTfRunning = false;
+const BESTTF_EVERY_MS = 10 * 60 * 1000; // recalcula no máx. a cada 10 min (pesado)
+const BESTTF_TFS = ["1m", "5m", "15m"];
+const BESTTF_MIN_N = 20;      // amostra mínima p/ confiar num tempo
+const BESTTF_MIN_GAP = 0.05;  // só sugere se o melhor supera o 2º em >=5pp
 let prevAlert = {}, lastNotifAt = {}, swReg = null;
 let ws = null, wsFails = 0, wsRenderPending = false;
 
@@ -406,9 +412,13 @@ function renderList() {
     const a = r.a, sc = r.sc, act = r.act, sig = r.sig;
     const operar = `<a class="mgo${act.hot ? " hot" : ""}" href="${BROKER}" target="_blank" rel="noopener noreferrer">Operar ↗</a>`;
     const sigBand = sig ? `<div class="msig ${sig.cls}">${sig.txt}</div>` : "";
+    const btf = bestTfCache[r.v];
+    const tfHint = btf
+      ? `<span class="mtf ${btf.tf === ovTf ? "on" : ""}${btf.strong ? "" : " weak"}" title="Melhor no histórico: ${btf.tf} · ${Math.round(btf.winRate * 100)}% em ${btf.n} ops${btf.strong ? " (diferença clara)" : " (diferença pequena — pouco confiável)"}">⏱ ${btf.tf}</span>`
+      : "";
     return `<div class="mrow ${act.cls}${act.hot ? " hot" : ""}" data-sym="${r.v}">
       <div class="mrow-top">
-        <span class="msym">${r.label}</span>
+        <span class="msym">${r.label}</span>${tfHint}
         <span class="maction ${act.cls}">${act.txt} <span class="mclk">${remTxt}</span></span>
         ${operar}
       </div>
@@ -458,6 +468,7 @@ async function refresh() {
       })
     );
     maybeBacktest();
+    computeBestTf();
     resolvePending();
     renderList();
     updateOpenChart();
@@ -480,6 +491,58 @@ function maybeBacktest() {
     } catch (_) {}
   }
   lastBtAt = Date.now();
+}
+
+// Win rate FILTRADO: só os sinais que o app LIBERA (regime=tendência), com
+// resultado = abertura→fechamento da vela operada (igual o app resolve). É o
+// que reflete o que você de fato opera — diferente do backtest cru.
+function filteredBinaryWR(candles) {
+  let n = 0, w = 0;
+  for (let i = 40; i < candles.length - 1; i++) {
+    const r = analyze(candles.slice(0, i + 1));
+    if (!r.ok || (r.verdict !== VERDICT.BUY && r.verdict !== VERDICT.SELL)) continue;
+    if (r.regime !== "tendencia") continue;
+    const nx = candles[i + 1];
+    if (nx.c === nx.o) continue;
+    const win = r.verdict === VERDICT.BUY ? nx.c > nx.o : nx.c < nx.o;
+    n++; if (win) w++;
+  }
+  return { n, winRate: n ? w / n : 0 };
+}
+
+// Qual tempo (1m/5m/15m) historicamente rende mais em CADA moeda — a única
+// "vantagem" real que o backtest achou. Pesado: roda esporádico e cede fôlego.
+async function computeBestTf(force) {
+  if (bestTfRunning) return;
+  if (!force && Date.now() - lastBestTfAt < BESTTF_EVERY_MS && Object.keys(bestTfCache).length) return;
+  bestTfRunning = true;
+  try {
+    for (const s of SYMBOLS) {
+      const res = [];
+      for (const tf of BESTTF_TFS) {
+        try {
+          const c = await fetchCandles(s.v, tf, 300);
+          if (c && c.length >= 60) {
+            const r = filteredBinaryWR(c);
+            if (r.n >= BESTTF_MIN_N) res.push({ tf, ...r });
+          }
+        } catch (_) {}
+      }
+      if (res.length) {
+        res.sort((a, b) => b.winRate - a.winRate);
+        const best = res[0];
+        const gap = res.length > 1 ? best.winRate - res[1].winRate : 1;
+        bestTfCache[s.v] = { tf: best.tf, winRate: best.winRate, n: best.n, strong: gap >= BESTTF_MIN_GAP };
+      } else {
+        bestTfCache[s.v] = null;
+      }
+      renderList(); // mostra cada chip assim que fica pronto
+      await new Promise((r) => setTimeout(r, 0)); // não trava a tela
+    }
+    lastBestTfAt = Date.now();
+  } finally {
+    bestTfRunning = false;
+  }
 }
 
 // ---- WebSocket (tempo real) de todas as criptos no tempo escolhido ----
@@ -669,6 +732,13 @@ function renderChartSig(sym) {
   box.className = "chart-sig " + tier;
   box.innerHTML = `<span class="cs-act ${act.cls}">${act.txt}</span>` +
     `<span class="cs-sig">${sigTxt}</span>`;
+  const foot = $("#chart-foot");
+  if (foot) {
+    const btf = bestTfCache[sym];
+    foot.textContent = (btf && btf.strong && btf.tf !== ovTf)
+      ? `⏱ Histórico: melhor em ${btf.tf} (${Math.round(btf.winRate * 100)}%) · você está no ${ovTf}`
+      : "velas em tempo real · EMA 9 e 21";
+  }
 }
 function updateOpenChart() {
   if (openChartSym) renderChartSig(openChartSym);
