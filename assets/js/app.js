@@ -631,6 +631,7 @@ function openChart(sym) {
   $("#chart-title").textContent = `${SYMBOL_LABEL[sym] || sym} · ${ovTf}`;
   const op = $("#chart-op"); if (op) op.href = BROKER;
   modal.hidden = false;
+  renderChartSig(sym);
   if (typeof LightweightCharts === "undefined") {
     $("#chart-foot").textContent = "gráfico indisponível (biblioteca não carregou)";
     return;
@@ -653,7 +654,24 @@ function openChart(sym) {
   ema21S.setData(emaBars(c, 21));
   chart.timeScale().fitContent();
 }
+// Veredito grande no topo do gráfico: ação + Sinal ótimo/bom/ruim.
+function renderChartSig(sym) {
+  const box = $("#chart-sig"); if (!box) return;
+  const a = aCache[sym];
+  if (!a || !a.ok) { box.hidden = true; return; }
+  const sc = scores(a);
+  const sig = signalQuality(a, sc);
+  const dur = DUR[ovTf] || 300000;
+  const act = rowAction(a, sym, dur - (Date.now() % dur), dur);
+  const tier = sig ? sig.cls : "ruim";
+  const sigTxt = sig ? sig.txt : "Sem direção clara";
+  box.hidden = false;
+  box.className = "chart-sig " + tier;
+  box.innerHTML = `<span class="cs-act ${act.cls}">${act.txt}</span>` +
+    `<span class="cs-sig">${sigTxt}</span>`;
+}
 function updateOpenChart() {
+  if (openChartSym) renderChartSig(openChartSym);
   if (!chart || !openChartSym || !candleSeries) return;
   const c = candlesSym[openChartSym];
   if (!c || !c.length) return;
