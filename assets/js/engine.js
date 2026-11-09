@@ -130,12 +130,16 @@ export function analyze(candles) {
     paradoAmp = movePct < minRangePct || (medR > 0 && s3 < medR);
   }
   // (b) Efficiency Ratio: progresso líquido vs. movimento total (picotado?).
+  // Limiar mais rígido nos tempos curtos: no 1m o serrilhado é mortal (cada
+  // vela vira cara-ou-coroa mesmo com a tendência geral certa), então exige
+  // movimento mais "limpo" pra liberar. Escalado pelo tempo da vela.
   const er = efficiencyRatio(closes, 10);
+  const erFloor = durMin <= 1 ? 0.50 : durMin <= 5 ? 0.42 : 0.38;
   let regime = "tendencia"; // ✅ movimento com direção
   let regimeLabel = "Com tendência";
   if (paradoAmp) {
     regime = "parado"; regimeLabel = "Parado (sem movimento)";
-  } else if (er != null && er < 0.4) {
+  } else if (er != null && er < erFloor) {
     if (risk < 25) { regime = "parado"; regimeLabel = "Parado"; }
     else { regime = "instavel"; regimeLabel = "Instável (vai-e-volta)"; }
   }
