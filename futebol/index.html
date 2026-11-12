@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Caça-Valor · Futebol</title>
+  <meta name="description" content="Probabilidade real de cada jogo por modelo de Poisson sobre dados ao vivo. Mostra onde a odd da casa tem valor — apoio à decisão, não é previsão garantida.">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <nav class="appmenu">
+    <a href="../" class="am">📈 Cripto</a>
+    <a href="./" class="am on">⚽ Futebol</a>
+  </nav>
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span><span>Caça-<b>Valor</b> · Futebol</span></div>
+    <div class="status" id="status"><span class="live-dot"></span><span id="status-text">carregando…</span></div>
+  </header>
+
+  <nav class="leagues" id="leagues"></nav>
+
+  <section class="intro">
+    <p>Probabilidade <b>real</b> de cada jogo, calculada por <b>Poisson</b> sobre os gols reais dos times (dados públicos, ao vivo). A <b>odd justa</b> é o que o risco vale de verdade. Digite a <b>odd da casa</b> pra ver se <b>tem valor</b> — mas lembre: se o modelo discordar MUITO da casa, o errado costuma ser o modelo (ele não vê lesão/forma). Apoio à decisão, não garante acerto.</p>
+  </section>
+
+  <main class="list" id="list"><div class="empty">carregando jogos…</div></main>
+
+  <section class="disclaimer">
+    <h2>Leia antes de apostar</h2>
+    <p>Isto <b>não é previsão garantida</b> nem conselho financeiro. A casa precifica as grandes ligas com perfeição e embute margem — bater no longo prazo é muito difícil. Aposte só o que pode perder.</p>
+  </section>
+
+  <footer class="foot">Dados ao vivo: ESPN (público) · Cálculo 100% no seu navegador</footer>
+
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>

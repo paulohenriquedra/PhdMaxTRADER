@@ -503,3 +503,7 @@ body {
   .td-verdict { font-size: 24px; }
   .verdict { font-size: 22px; }
 }
+
+.appmenu { display: flex; gap: 8px; padding: 10px 16px 0; max-width: 760px; margin: 0 auto; }
+.appmenu .am { flex: 1; text-align: center; text-decoration: none; font-weight: 700; font-size: 14px; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 11px; padding: 10px; }
+.appmenu .am.on { color: #fff; background: var(--accent); border-color: var(--accent); }
