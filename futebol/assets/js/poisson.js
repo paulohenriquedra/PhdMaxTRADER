@@ -93,22 +93,32 @@ export function expectedGoalsAdv(homeR, awayR, leagueAvg, restHome, restAway) {
 export function matchProbs(lambdaHome, lambdaAway, maxG = 8) {
   const ph = []; const pa = [];
   for (let k = 0; k <= maxG; k++) { ph[k] = poissonPMF(k, lambdaHome); pa[k] = poissonPMF(k, lambdaAway); }
-  let home = 0, draw = 0, away = 0, over25 = 0, bttsYes = 0;
+  let home = 0, draw = 0, away = 0;
+  let over15 = 0, over25 = 0, over35 = 0, bttsYes = 0;
+  let homeM1 = 0, awayM1 = 0; // vencer por 2+ gols (handicap -1)
   const scores = [];
   for (let i = 0; i <= maxG; i++) {
     for (let j = 0; j <= maxG; j++) {
       const p = ph[i] * pa[j];
       if (i > j) home += p; else if (i === j) draw += p; else away += p;
+      if (i + j >= 2) over15 += p;
       if (i + j >= 3) over25 += p;
+      if (i + j >= 4) over35 += p;
       if (i >= 1 && j >= 1) bttsYes += p;
+      if (i - j >= 2) homeM1 += p;
+      if (j - i >= 2) awayM1 += p;
       scores.push({ i, j, p });
     }
   }
   scores.sort((a, b) => b.p - a.p);
   return {
     home, draw, away,
+    dc1x: home + draw, dc12: home + away, dcx2: draw + away, // dupla chance
+    over15, under15: 1 - over15,
     over25, under25: 1 - over25,
+    over35, under35: 1 - over35,
     bttsYes, bttsNo: 1 - bttsYes,
+    homeM1, awayM1, // casa/fora -1 (vence por 2+)
     topScores: scores.slice(0, 4),
     lambdaHome, lambdaAway,
   };

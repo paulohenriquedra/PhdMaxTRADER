@@ -3,13 +3,22 @@
 
 export const LEAGUES = [
   { code: "bra.1", label: "Brasileirão" },
+  { code: "bra.2", label: "Brasileirão B" },
+  { code: "conmebol.libertadores", label: "Libertadores" },
+  { code: "conmebol.sudamericana", label: "Sul-Americana" },
+  { code: "arg.1", label: "Argentina" },
   { code: "eng.1", label: "Premier League" },
+  { code: "eng.2", label: "Championship" },
   { code: "esp.1", label: "La Liga" },
   { code: "ita.1", label: "Serie A" },
   { code: "ger.1", label: "Bundesliga" },
   { code: "fra.1", label: "Ligue 1" },
   { code: "por.1", label: "Portugal" },
+  { code: "ned.1", label: "Holanda" },
+  { code: "usa.1", label: "MLS" },
+  { code: "mex.1", label: "Liga MX" },
   { code: "uefa.champions", label: "Champions" },
+  { code: "uefa.europa", label: "Europa League" },
 ];
 
 const BASE = "https://site.api.espn.com/apis";
