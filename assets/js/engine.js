@@ -113,11 +113,12 @@ export function analyze(candles) {
   const n = closes.length;
   // piso mínimo de movimento (% do preço), escalado pelo tempo da vela
   const durMin = n > 1 ? (candles[1].t - candles[0].t) / 60000 : 1;
-  // Piso calibrado com dados reais (Binance/OKX): abaixo disso o movimento é
-  // menor que a divergência entre os feeds (corretora x exchange) e a direção
-  // da vela vira cara-ou-coroa. Trava BTC/BNB/ETC parados; deixa passar as que
-  // andam (ARB/NEAR/SUI/ZEC). Escalado pelo tempo da vela (√ do minuto).
-  const minRangePct = 0.15 * Math.sqrt(durMin || 1);
+  // Piso de movimento: abaixo disso a vela é menor que a divergência entre os
+  // feeds (corretora x exchange) e a direção vira cara-ou-coroa. Calibrado pra
+  // travar SÓ as moedas realmente paradas (BTC/BNB a 0,02–0,07%) e deixar
+  // passar as que andam. Afrouxado (0,10) porque apertar mais não melhora o
+  // acerto — só trava à toa. Escalado pelo tempo da vela (√ do minuto).
+  const minRangePct = 0.10 * Math.sqrt(durMin || 1);
   let paradoAmp = false;
   let movePct = 0; // amplitude típica da vela, em % do preço (força do movimento)
   if (n >= 16) {
@@ -130,11 +131,11 @@ export function analyze(candles) {
     paradoAmp = movePct < minRangePct || (medR > 0 && s3 < medR);
   }
   // (b) Efficiency Ratio: progresso líquido vs. movimento total (picotado?).
-  // Limiar mais rígido nos tempos curtos: no 1m o serrilhado é mortal (cada
-  // vela vira cara-ou-coroa mesmo com a tendência geral certa), então exige
-  // movimento mais "limpo" pra liberar. Escalado pelo tempo da vela.
+  // Mantido BRANDO: o backtest mostrou que apertar o picotado não melhora o
+  // acerto (às vezes piora) e só trava operações. Bloqueia só o serrilhado
+  // degenerado (ER bem baixo), não o movimento normal.
   const er = efficiencyRatio(closes, 10);
-  const erFloor = durMin <= 1 ? 0.50 : durMin <= 5 ? 0.42 : 0.38;
+  const erFloor = 0.33;
   let regime = "tendencia"; // ✅ movimento com direção
   let regimeLabel = "Com tendência";
   if (paradoAmp) {
