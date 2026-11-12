@@ -1,6 +1,8 @@
 // data.js — dados de futebol REAIS e PÚBLICOS (ESPN), sem chave e sem login.
 // Mesmo espírito do app de cripto: fonte pública, cálculo no navegador.
 
+export const LIVE_ALL = "LIVE";
+
 export const LEAGUES = [
   { code: "bra.1", label: "Brasileirão" },
   { code: "bra.2", label: "Brasileirão B" },
@@ -49,6 +51,18 @@ export async function fetchTable(league) {
   }).filter((t) => t.gp > 0);
 }
 
+/** Varre TODAS as ligas e junta só os jogos AO VIVO (estado "in"). */
+export async function fetchLiveAll() {
+  const results = await Promise.allSettled(LEAGUES.map((l) => fetchMatches(l.code)));
+  const live = [];
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") {
+      for (const m of r.value) if (m.state === "in") live.push({ ...m, leagueLabel: LEAGUES[i].label });
+    }
+  });
+  return live;
+}
+
 /** Forma recente de um time: últimos jogos com gols, mando e data. */
 export async function fetchForm(league, teamId) {
   try {
@@ -92,7 +106,7 @@ export async function fetchMatches(league) {
       };
     }
     return {
-      id: e.id,
+      id: e.id, league,
       homeId: home.team.id, awayId: away.team.id,
       home: home.team.displayName, homeAbbr: home.team.abbreviation,
       away: away.team.displayName, awayAbbr: away.team.abbreviation,

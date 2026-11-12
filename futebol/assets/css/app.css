@@ -31,6 +31,9 @@ body {
   border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .leagues button.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+.leagues .live-btn { border-color: rgba(234,57,67,.5); color: #fca5a5; }
+.leagues .live-btn.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.liga { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; color: var(--accent); background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.3); border-radius: 5px; padding: 1px 6px; margin-right: 2px; }
 
 .intro, .disclaimer { background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 15px; margin: 6px 0 14px; }
 .intro p, .disclaimer p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }

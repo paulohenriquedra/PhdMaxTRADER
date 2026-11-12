@@ -1,11 +1,11 @@
 // app.js — lista de jogos com probabilidade real (Poisson) e caça-valor.
-import { LEAGUES, fetchTable, fetchMatches, fetchForm } from "./data.js";
+import { LEAGUES, LIVE_ALL, fetchTable, fetchMatches, fetchForm, fetchLiveAll } from "./data.js";
 import { leagueStrengths, teamRates, expectedGoalsAdv, matchProbs, fairOdd, value } from "./poisson.js";
 
 const $ = (s) => document.querySelector(s);
-let league = localStorage.getItem("cv_league") || "bra.1";
-let lg = null;           // média de gols da liga
-let byName = {};         // nome -> {gp, gf, ga} (temporada)
+let league = localStorage.getItem("cv_league") || LIVE_ALL;
+let lgCache = {};        // liga -> {str, avgGoals}
+let byNameCache = {};    // liga -> { nome: {gp,gf,ga} }
 let formCache = {};      // teamId -> {recent, lastDate}
 let matches = [];
 let oddCache = {};
@@ -20,7 +20,8 @@ function setStatus(txt, cls) { const s = $("#status"); if (s) { $("#status-text"
 const pct = (x) => Math.round(x * 100) + "%";
 
 function renderLeagues() {
-  $("#leagues").innerHTML = LEAGUES.map((l) =>
+  const live = `<button data-lg="${LIVE_ALL}" class="live-btn ${league === LIVE_ALL ? "on" : ""}">🔴 Ao vivo</button>`;
+  $("#leagues").innerHTML = live + LEAGUES.map((l) =>
     `<button data-lg="${l.code}" class="${l.code === league ? "on" : ""}">${l.label}</button>`).join("");
 }
 
@@ -47,6 +48,7 @@ function marketRow(nome, prob, key, mid) {
 }
 
 function cardHTML(m) {
+  const lg = lgCache[m.league], byName = byNameCache[m.league] || {};
   const hs = byName[m.home], as = byName[m.away];
   const fh = formCache[m.homeId] || { recent: [] }, fa = formCache[m.awayId] || { recent: [] };
   let eg = null, rh = null, ra = null, restH = null, restA = null;
@@ -57,11 +59,12 @@ function cardHTML(m) {
     eg = expectedGoalsAdv(rh, ra, lg.avgGoals, restH, restA);
   }
   const live = m.state === "in";
+  const ligaTag = (league === LIVE_ALL && m.leagueLabel) ? `<span class="liga">${m.leagueLabel}</span>` : "";
   const scoreTxt = (m.state !== "pre") ? `<span class="sc">${m.homeScore}-${m.awayScore}</span>` : "";
   if (!eg) {
-    return `<div class="card"><div class="ch"><span class="tm">${m.home}</span> ${scoreTxt} <span class="tm">${m.away}</span>
-      <span class="st ${live ? "live" : ""}">${m.status}</span></div>
-      <div class="noeg">sem dados de força dos times pra este jogo</div></div>`;
+    return `<div class="card${live ? " live" : ""}"><div class="ch">${ligaTag}<span class="tm">${m.home}</span> ${scoreTxt} <span class="tm">${m.away}</span>
+      <span class="st ${live ? "live" : ""}">${live ? "🔴 " : ""}${m.status}${live && m.clock ? " " + m.clock : ""}</span></div>
+      <div class="noeg">prob. indisponível (sem tabela da liga) — placar ao vivo acima</div></div>`;
   }
   const p = matchProbs(eg.lambdaHome, eg.lambdaAway);
   const mid = m.id;
@@ -70,7 +73,7 @@ function cardHTML(m) {
   const formBadge = (r, rest) => `${r.formStr ? `<span class="fm">${r.formStr.split("").map((c) => `<i class="f${c}">${c}</i>`).join("")}</span>` : ""}${rest != null ? ` <span class="rest">${rest}d</span>` : ""}`;
   return `<div class="card${live ? " live" : ""}">
     <div class="ch">
-      <span class="tm home">${m.home}</span> ${scoreTxt || "<span class='x'>x</span>"} <span class="tm away">${m.away}</span>
+      ${ligaTag}<span class="tm home">${m.home}</span> ${scoreTxt || "<span class='x'>x</span>"} <span class="tm away">${m.away}</span>
       <span class="st ${live ? "live" : ""}">${live ? "🔴 " : ""}${m.status}${live && m.clock ? " " + m.clock : ""}</span>
     </div>
     <div class="form">${m.homeAbbr || "Casa"}: ${formBadge(rh, restH)} &nbsp;·&nbsp; ${m.awayAbbr || "Fora"}: ${formBadge(ra, restA)}</div>
@@ -103,27 +106,53 @@ function render() {
   const box = $("#list");
   // não re-renderiza enquanto você digita uma odd (não perde foco/abertura)
   if (document.querySelector(".mk-o:focus")) return;
-  if (!matches.length) { box.innerHTML = `<div class="empty">Sem jogos nesta liga agora. Tente outra.</div>`; return; }
+  const emptyMsg = league === LIVE_ALL
+    ? "Nenhum jogo ao vivo agora em nenhuma liga. O futebol ao vivo é quase tudo de tarde/noite — volte mais tarde ou escolha uma liga pra ver os próximos."
+    : "Sem jogos nesta liga agora. Tente outra ou o '🔴 Ao vivo'.";
+  if (!matches.length) { box.innerHTML = `<div class="empty">${emptyMsg}</div>`; return; }
   const byDate = (a, b) => new Date(a.date) - new Date(b.date);
   const live = matches.filter((m) => m.state === "in").sort(byDate);
   const pre = matches.filter((m) => m.state === "pre").sort(byDate);
   const post = matches.filter((m) => m.state === "post").sort((a, b) => new Date(b.date) - new Date(a.date));
   let html = "";
-  if (live.length) html += `<div class="sec live">🔴 Ao vivo agora</div>` + live.map(cardHTML).join("");
+  if (live.length) html += `<div class="sec live">🔴 Ao vivo agora (${live.length})</div>` + live.map(cardHTML).join("");
   if (pre.length) html += `<div class="sec">📅 Hoje / próximos</div>` + pre.map(cardHTML).join("");
   if (post.length) html += `<details class="done"><summary>✓ Encerrados (${post.length})</summary>${post.map(cardHTML).join("")}</details>`;
   box.innerHTML = html || `<div class="empty">Sem jogos nesta liga agora. Tente outra.</div>`;
 }
 
+// Carrega a tabela (força dos times) de uma liga para o cache, uma vez.
+async function loadStandings(lgCode) {
+  if (lgCache[lgCode]) return;
+  try {
+    const table = await fetchTable(lgCode);
+    lgCache[lgCode] = leagueStrengths(table);
+    const bn = {}; table.forEach((t) => { bn[t.name] = { gp: t.gp, gf: t.gf, ga: t.ga }; });
+    byNameCache[lgCode] = bn;
+  } catch (_) { byNameCache[lgCode] = byNameCache[lgCode] || {}; }
+}
+
 async function refresh() {
   try {
     setStatus("buscando…");
+    if (league === LIVE_ALL) {
+      matches = await fetchLiveAll();
+      render();
+      // carrega tabela só das ligas que têm jogo ao vivo + forma dos times
+      const ligas = [...new Set(matches.map((m) => m.league))];
+      await Promise.all(ligas.map(loadStandings));
+      const pairs = [...new Set(matches.flatMap((m) => [m.league + "|" + m.homeId, m.league + "|" + m.awayId]))];
+      await Promise.all(pairs.map(async (pk) => { const [lgc, id] = pk.split("|"); if (!formCache[id]) formCache[id] = await fetchForm(lgc, id); }));
+      render();
+      setStatus(matches.length ? `${matches.length} ao vivo · ${new Date().toLocaleTimeString("pt-BR")}` : "nenhum jogo ao vivo agora", matches.length ? "live" : "");
+      return;
+    }
     const [table, ms] = await Promise.all([fetchTable(league), fetchMatches(league)]);
-    lg = leagueStrengths(table);
-    byName = {}; table.forEach((t) => { byName[t.name] = { gp: t.gp, gf: t.gf, ga: t.ga }; });
+    lgCache[league] = leagueStrengths(table);
+    const bn = {}; table.forEach((t) => { bn[t.name] = { gp: t.gp, gf: t.gf, ga: t.ga }; });
+    byNameCache[league] = bn;
     matches = ms;
-    render(); // mostra já com o modelo de temporada
-    // busca a forma recente de cada time (melhora o modelo) e re-renderiza
+    render();
     const ids = [...new Set(ms.flatMap((m) => [m.homeId, m.awayId]).filter(Boolean))];
     await Promise.all(ids.map(async (id) => { if (!formCache[id]) formCache[id] = await fetchForm(league, id); }));
     render();
