@@ -116,7 +116,12 @@ function render() {
   const post = matches.filter((m) => m.state === "post").sort((a, b) => new Date(b.date) - new Date(a.date));
   let html = "";
   if (live.length) html += `<div class="sec live">🔴 Ao vivo agora (${live.length})</div>` + live.map(cardHTML).join("");
-  if (pre.length) html += `<div class="sec">📅 Hoje / próximos</div>` + pre.map(cardHTML).join("");
+  if (pre.length) {
+    const preHdr = league === LIVE_ALL
+      ? (live.length ? "⏳ Começam em breve" : "⏳ Nada ao vivo — próximos a começar")
+      : "📅 Hoje / próximos";
+    html += `<div class="sec">${preHdr}</div>` + pre.map(cardHTML).join("");
+  }
   if (post.length) html += `<details class="done"><summary>✓ Encerrados (${post.length})</summary>${post.map(cardHTML).join("")}</details>`;
   box.innerHTML = html || `<div class="empty">Sem jogos nesta liga agora. Tente outra.</div>`;
 }
@@ -137,15 +142,17 @@ async function refresh() {
     setStatus("buscando…");
     if (league === LIVE_ALL) {
       setStatus("varrendo ligas do mundo…");
-      matches = await fetchLiveAll();
+      const { live, soon } = await fetchLiveAll();
+      matches = [...live, ...soon];
       render();
-      // carrega tabela só das ligas que têm jogo ao vivo + forma dos times
+      // carrega tabela só das ligas envolvidas + forma dos times
       const ligas = [...new Set(matches.map((m) => m.league))];
       await Promise.all(ligas.map(loadStandings));
       const pairs = [...new Set(matches.flatMap((m) => [m.league + "|" + m.homeId, m.league + "|" + m.awayId]))];
       await Promise.all(pairs.map(async (pk) => { const [lgc, id] = pk.split("|"); if (!formCache[id]) formCache[id] = await fetchForm(lgc, id); }));
       render();
-      setStatus(matches.length ? `${matches.length} ao vivo · ${new Date().toLocaleTimeString("pt-BR")}` : "nenhum jogo ao vivo agora", matches.length ? "live" : "");
+      const t = new Date().toLocaleTimeString("pt-BR");
+      setStatus(live.length ? `${live.length} ao vivo · ${t}` : (soon.length ? `nada ao vivo · ${soon.length} começando em breve` : `nada ao vivo agora · ${t}`), live.length ? "live" : "");
       return;
     }
     const [table, ms] = await Promise.all([fetchTable(league), fetchMatches(league)]);

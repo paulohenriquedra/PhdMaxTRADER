@@ -84,16 +84,24 @@ export async function fetchTable(league) {
   }).filter((t) => t.gp > 0);
 }
 
-/** Varre TODAS as ligas (SCAN_LEAGUES) e junta só os jogos AO VIVO. */
+/** Varre TODAS as ligas (SCAN_LEAGUES): jogos AO VIVO + os próximos a começar. */
 export async function fetchLiveAll() {
   const results = await Promise.allSettled(SCAN_LEAGUES.map((l) => fetchMatches(l.code)));
-  const live = [];
+  const live = [], soon = [];
+  const now = Date.now(), horizon = now + 10 * 3600 * 1000; // próximas ~10h
   results.forEach((r, i) => {
-    if (r.status === "fulfilled") {
-      for (const m of r.value) if (m.state === "in") live.push({ ...m, leagueLabel: SCAN_LEAGUES[i].label });
+    if (r.status !== "fulfilled") return;
+    const label = SCAN_LEAGUES[i].label;
+    for (const m of r.value) {
+      if (m.state === "in") live.push({ ...m, leagueLabel: label });
+      else if (m.state === "pre") {
+        const t = new Date(m.date).getTime();
+        if (t >= now - 3600000 && t <= horizon) soon.push({ ...m, leagueLabel: label, _t: t });
+      }
     }
   });
-  return live;
+  soon.sort((a, b) => a._t - b._t);
+  return { live, soon: soon.slice(0, 30) };
 }
 
 /** Forma recente de um time: últimos jogos com gols, mando e data. */
