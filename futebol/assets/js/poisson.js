@@ -45,7 +45,7 @@ export function expectedGoals(home, away, lg) {
  * mando (casa/fora). recent: [{for, against, home}] do mais novo p/ o antigo.
  */
 export function teamRates(season, recent, leagueAvg) {
-  const k = 4; // jogos "fantasma" na média da liga (encolhimento)
+  const k = 6; // jogos "fantasma" na média da liga (encolhimento mais forte)
   const seasonAtt = (season.gf + k * leagueAvg) / (season.gp + k);
   const seasonDef = (season.ga + k * leagueAvg) / (season.gp + k);
   // forma recente com peso exponencial (jogo mais novo pesa mais)
@@ -56,9 +56,9 @@ export function teamRates(season, recent, leagueAvg) {
   }
   const recAtt = wSum ? wF / wSum : seasonAtt;
   const recDef = wSum ? wA / wSum : seasonDef;
-  // 55% forma recente + 45% temporada
-  const att = 0.55 * recAtt + 0.45 * seasonAtt;
-  const def = 0.55 * recDef + 0.45 * seasonDef;
+  // 40% forma recente + 60% temporada (forma menos dominante = menos exagero)
+  const att = 0.40 * recAtt + 0.60 * seasonAtt;
+  const def = 0.40 * recDef + 0.60 * seasonDef;
   // forma em texto (últimos 5): V/E/D
   const formStr = (recent || []).slice(0, 5).map((g) =>
     g.for > g.against ? "V" : g.for === g.against ? "E" : "D").join("");
@@ -81,8 +81,15 @@ export function expectedGoalsAdv(homeR, awayR, leagueAvg, restHome, restAway) {
   if (!homeR || !awayR || !leagueAvg) return null;
   const hAtt = homeR.att / leagueAvg, hDef = homeR.def / leagueAvg;
   const aAtt = awayR.att / leagueAvg, aDef = awayR.def / leagueAvg;
-  const lambdaHome = leagueAvg * hAtt * aDef * HOME_ADV * restFactor(restHome);
-  const lambdaAway = leagueAvg * aAtt * hDef / HOME_ADV * restFactor(restAway);
+  const rawHome = leagueAvg * hAtt * aDef * HOME_ADV * restFactor(restHome);
+  const rawAway = leagueAvg * aAtt * hDef / HOME_ADV * restFactor(restAway);
+  // Regressão à média: o modelo multiplicativo EXAGERA os extremos (ataque forte
+  // x defesa fraca estoura o λ). Puxa 35% de volta ao λ "normal" da liga, como
+  // a casa faz. Evita o "90% no over" irreal sem matar a leitura do jogo.
+  const W = 0.65;
+  const baseHome = leagueAvg * HOME_ADV, baseAway = leagueAvg / HOME_ADV;
+  const lambdaHome = W * rawHome + (1 - W) * baseHome;
+  const lambdaAway = W * rawAway + (1 - W) * baseAway;
   return { lambdaHome, lambdaAway };
 }
 
