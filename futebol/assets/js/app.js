@@ -136,6 +136,7 @@ async function refresh() {
   try {
     setStatus("buscando…");
     if (league === LIVE_ALL) {
+      setStatus("varrendo ligas do mundo…");
       matches = await fetchLiveAll();
       render();
       // carrega tabela só das ligas que têm jogo ao vivo + forma dos times

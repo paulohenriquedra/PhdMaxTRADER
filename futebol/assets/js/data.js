@@ -3,6 +3,8 @@
 
 export const LIVE_ALL = "LIVE";
 
+// Ligas nos botões (as mais pedidas). O modo "Ao vivo" varre uma lista bem
+// maior (SCAN_LEAGUES) pra achar jogo rolando em qualquer país.
 export const LEAGUES = [
   { code: "bra.1", label: "Brasileirão" },
   { code: "bra.2", label: "Brasileirão B" },
@@ -19,8 +21,39 @@ export const LEAGUES = [
   { code: "ned.1", label: "Holanda" },
   { code: "usa.1", label: "MLS" },
   { code: "mex.1", label: "Liga MX" },
+  { code: "jpn.1", label: "Japão" },
+  { code: "sau.1", label: "Arábia" },
+  { code: "tur.1", label: "Turquia" },
+  { code: "col.1", label: "Colômbia" },
   { code: "uefa.champions", label: "Champions" },
   { code: "uefa.europa", label: "Europa League" },
+];
+
+// Varredura ao vivo: todas as ligas da ESPN que valem a pena checar.
+export const SCAN_LEAGUES = [
+  ...LEAGUES,
+  { code: "chn.1", label: "China" }, { code: "aus.1", label: "Austrália" },
+  { code: "idn.1", label: "Indonésia" }, { code: "mys.1", label: "Malásia" },
+  { code: "tha.1", label: "Tailândia" }, { code: "ind.1", label: "Índia" },
+  { code: "kor.1", label: "Coreia" }, { code: "qat.1", label: "Catar" },
+  { code: "uae.1", label: "Emirados" }, { code: "irn.1", label: "Irã" },
+  { code: "uzb.1", label: "Uzbequistão" }, { code: "rus.1", label: "Rússia" },
+  { code: "gre.1", label: "Grécia" }, { code: "isr.1", label: "Israel" },
+  { code: "egy.1", label: "Egito" }, { code: "rsa.1", label: "África do Sul" },
+  { code: "bel.1", label: "Bélgica" }, { code: "sco.1", label: "Escócia" },
+  { code: "den.1", label: "Dinamarca" }, { code: "nor.1", label: "Noruega" },
+  { code: "swe.1", label: "Suécia" }, { code: "aut.1", label: "Áustria" },
+  { code: "sui.1", label: "Suíça" }, { code: "pol.1", label: "Polônia" },
+  { code: "cro.1", label: "Croácia" }, { code: "srb.1", label: "Sérvia" },
+  { code: "rou.1", label: "Romênia" }, { code: "ukr.1", label: "Ucrânia" },
+  { code: "chi.1", label: "Chile" }, { code: "uru.1", label: "Uruguai" },
+  { code: "par.1", label: "Paraguai" }, { code: "per.1", label: "Peru" },
+  { code: "ecu.1", label: "Equador" }, { code: "bol.1", label: "Bolívia" },
+  { code: "ven.1", label: "Venezuela" }, { code: "crc.1", label: "Costa Rica" },
+  { code: "slv.1", label: "El Salvador" }, { code: "gua.1", label: "Guatemala" },
+  { code: "eng.3", label: "Inglaterra L1" }, { code: "eng.4", label: "Inglaterra L2" },
+  { code: "esp.2", label: "Espanha 2" }, { code: "ita.2", label: "Itália B" },
+  { code: "ger.2", label: "Alemanha 2" }, { code: "fra.2", label: "França 2" },
 ];
 
 const BASE = "https://site.api.espn.com/apis";
@@ -51,13 +84,13 @@ export async function fetchTable(league) {
   }).filter((t) => t.gp > 0);
 }
 
-/** Varre TODAS as ligas e junta só os jogos AO VIVO (estado "in"). */
+/** Varre TODAS as ligas (SCAN_LEAGUES) e junta só os jogos AO VIVO. */
 export async function fetchLiveAll() {
-  const results = await Promise.allSettled(LEAGUES.map((l) => fetchMatches(l.code)));
+  const results = await Promise.allSettled(SCAN_LEAGUES.map((l) => fetchMatches(l.code)));
   const live = [];
   results.forEach((r, i) => {
     if (r.status === "fulfilled") {
-      for (const m of r.value) if (m.state === "in") live.push({ ...m, leagueLabel: LEAGUES[i].label });
+      for (const m of r.value) if (m.state === "in") live.push({ ...m, leagueLabel: SCAN_LEAGUES[i].label });
     }
   });
   return live;
